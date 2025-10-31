@@ -1,0 +1,24 @@
+# Development dependencies for AI Code Review System
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-xdist>=3.3.0  # Parallel testing
+pytest-mock>=3.11.0
+
+# Type checking
+mypy>=1.5.0
+
+# Code formatting
+black>=23.7.0
+
+# Linting
+ruff>=0.1.0
+
+# Documentation
+mkdocs>=1.5.0  # Optional: for documentation site
+mkdocs-material>=9.2.0  # Optional: Material theme
+
+# Future additions (commented out for now)
+# requests>=2.31.0  # If HTTP requests needed
+# click>=8.1.0  # If CLI framework needed
