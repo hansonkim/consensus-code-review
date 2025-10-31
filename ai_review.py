@@ -141,6 +141,13 @@ def parse_arguments() -> argparse.Namespace:
         help="최대 검증 라운드 수 (기본값: 3)",
     )
     parser.add_argument(
+        "--max-files",
+        type=int,
+        default=None,
+        metavar="N",
+        help="한 번에 리뷰할 최대 파일 수 (기본값: 무제한)",
+    )
+    parser.add_argument(
         "--only",
         metavar="AI_LIST",
         help="사용할 AI 리스트 (쉼표로 구분, 예: claude,gemini)",
@@ -437,6 +444,13 @@ def main() -> None:
         # 5. 파일 분석
         files = analyze_target_files(review_mode, target_path, extensions)
 
+        # 파일 수 제한
+        if args.max_files and len(files) > args.max_files:
+            print(f"\n⚠️  경고: {len(files)}개 파일이 감지되었으나 --max-files={args.max_files} 제한으로")
+            print(f"    처음 {args.max_files}개 파일만 리뷰합니다.")
+            print(f"    전체 리뷰를 원하시면 --max-files 옵션을 늘리거나 제거하세요.\n")
+            files = files[:args.max_files]
+
         print("=" * 70)
         print(f"리뷰 대상: {len(files)}개 파일")
         print("=" * 70)
@@ -445,6 +459,11 @@ def main() -> None:
         if len(files) > 10:
             print(f"  ... 외 {len(files) - 10}개")
         print()
+
+        # 파일 수가 많을 때 경고
+        if len(files) > 30:
+            print(f"⚠️  주의: {len(files)}개 파일을 한 번에 리뷰하면 AI 모델 제한으로 실패할 수 있습니다.")
+            print(f"    권장: --max-files=20 옵션으로 제한하거나 --extensions로 파일 필터링\n")
 
         # 6. 리뷰 프로세스 실행 (Phase 1-3)
         initial_reviews, verification_history, final_review = execute_review_process(

@@ -102,6 +102,8 @@ class AIClient:
             AIResponseError: 모든 재시도 실패 시
         """
         last_exception = None
+        prompt_size = len(prompt)
+        prompt_lines = prompt.count('\n')
 
         for attempt in range(max_retries):
             try:
@@ -110,11 +112,16 @@ class AIClient:
                 last_exception = e
                 if attempt < max_retries - 1:
                     print(f"⚠️  {ai_model.name} 타임아웃 발생, 재시도 중... ({attempt + 1}/{max_retries})")
+                    print(f"    프롬프트 크기: {prompt_size:,} 문자, {prompt_lines:,} 줄")
                     continue
             except AIResponseError as e:
                 last_exception = e
                 if attempt < max_retries - 1:
+                    # 실제 오류 메시지 표시
+                    error_detail = str(e).split(':', 1)[-1].strip() if ':' in str(e) else str(e)
                     print(f"⚠️  {ai_model.name} 오류 발생, 재시도 중... ({attempt + 1}/{max_retries})")
+                    print(f"    오류 내용: {error_detail[:200]}")  # 처음 200자만
+                    print(f"    프롬프트 크기: {prompt_size:,} 문자, {prompt_lines:,} 줄")
                     continue
             except AIModelNotFoundError:
                 # CLI가 없는 경우는 재시도해도 소용없음

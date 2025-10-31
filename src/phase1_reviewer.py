@@ -51,8 +51,20 @@ class Phase1Reviewer:
         # 파일 내용 읽기
         code_content = self._read_files(files)
 
+        # 빈 파일 필터링
+        filtered_content = {k: v for k, v in code_content.items() if v.strip()}
+        skipped = len(code_content) - len(filtered_content)
+
+        if skipped > 0:
+            print(f"⚠️  {skipped}개 파일 스킵 (빈 내용 또는 읽기 실패)")
+
+        if not filtered_content:
+            raise RuntimeError("읽을 수 있는 파일이 없습니다")
+
+        print(f"✓ {len(filtered_content)}개 파일 리뷰 준비 완료\n")
+
         # 프롬프트 생성
-        prompt = self._generate_initial_review_prompt(code_content, files)
+        prompt = self._generate_initial_review_prompt(filtered_content, list(filtered_content.keys()))
 
         # 병렬 실행
         reviews = {}
@@ -123,7 +135,21 @@ class Phase1Reviewer:
 
         Returns:
             프롬프트 문자열
+
+        Raises:
+            RuntimeError: 프롬프트가 너무 클 때
         """
+        # 프롬프트 크기 추정 (대략적)
+        total_chars = sum(len(content) for content in code_content.values())
+        estimated_tokens = total_chars // 4  # 대략 4 chars = 1 token
+
+        # 경고 출력
+        if estimated_tokens > 100_000:
+            print(f"⚠️  경고: 프롬프트 크기가 매우 큽니다 (~{estimated_tokens:,} 토큰)")
+            print(f"    일부 AI 모델은 컨텍스트 제한으로 실패할 수 있습니다")
+            print(f"    파일 수: {len(files)}개, 총 문자: {total_chars:,}개\n")
+
+        # 프롬프트 생성
         prompt = f"""# 코드 리뷰 요청 (Phase 1: 독립적 초기 리뷰)
 
 당신은 전문적인 코드 리뷰어입니다. 다음 코드를 다각도로 분석하고 상세한 리뷰를 제공해주세요.
@@ -137,8 +163,7 @@ class Phase1Reviewer:
 """
 
         for file_path, content in code_content.items():
-            if content:
-                prompt += f"""
+            prompt += f"""
 ### 파일: {file_path}
 
 ```
