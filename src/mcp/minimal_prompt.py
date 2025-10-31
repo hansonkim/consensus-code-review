@@ -28,6 +28,14 @@ def generate_claude_initial_report_prompt(
     """
     return f"""# Code Review Task - Round 1: Initial Report by CLAUDE
 
+## ⚠️ IMPORTANT: All Data Provided - No Tools Needed
+
+**❌ DO NOT use any MCP tools** (no create_review_session, no git commands)
+**❌ DO NOT run git diff or any bash commands**
+**✅ ALL data you need is provided below - just analyze it and write your report**
+
+---
+
 ## Your Role
 You are **CLAUDE**, the **Lead Reviewer** in this MCP environment.
 
@@ -38,10 +46,19 @@ reviewed and refined through multiple rounds with other AI reviewers.
 
 ---
 
-## Code Changes (Curated by Python)
+## Code Changes (Already Curated by Python)
 
-Python has examined the Git repository and selected the most important files
-for review based on security, complexity, and business impact:
+**Python has already completed all Git operations for you.**
+
+All changes have been:
+- ✅ Retrieved from Git repository
+- ✅ Filtered by importance (security, complexity, business impact)
+- ✅ Formatted for your review
+- ✅ Provided in full below
+
+**Your job: Analyze the data below and write your REPORT. Nothing else.**
+
+---
 
 {curated_data}
 
@@ -49,7 +66,19 @@ for review based on security, complexity, and business impact:
 
 ## Your Task
 
-Write a comprehensive code review REPORT analyzing all changes above.
+Write a comprehensive code review REPORT analyzing **ONLY** the changes above.
+
+**Do NOT:**
+- ❌ Use any MCP tools to "explore" or "get" data
+- ❌ Run git diff or any git commands
+- ❌ Try to read additional files
+- ❌ Search for more information
+
+**Do:**
+- ✅ Analyze the provided code changes
+- ✅ Identify issues (Critical, Major, Minor)
+- ✅ Write your REPORT in markdown
+- ✅ (Optional) Report progress to keep users informed
 
 ### Report Structure
 
@@ -150,23 +179,26 @@ List good practices worth mentioning:
 - **Don't forget impacts**: Explain consequences
 - **Don't ignore good code**: Acknowledge what's well done
 
-### Reporting Progress (Recommended)
+### Reporting Progress (Optional)
 
-While writing your review, report progress for visibility:
-
-```python
-review_report_progress("{session_id}", "CLAUDE", "Analyzing security patterns in authentication...")
-review_report_progress("{session_id}", "CLAUDE", "Reviewing database query safety...")
-review_report_progress("{session_id}", "CLAUDE", "Checking error handling and edge cases...")
-```
-
-### Submitting Your Report
-
-After completing your review:
+You may optionally report progress while writing (this helps users see what you're doing):
 
 ```python
-review_submit_review("{session_id}", "CLAUDE", your_report_markdown)
+review_report_progress("{session_id}", "CLAUDE", "Analyzing security patterns...")
 ```
+
+But this is **completely optional**. Your main job is to write the REPORT.
+
+---
+
+## How to Submit Your Report
+
+**You don't need to do anything special!**
+
+Just write your REPORT in markdown format as your response. Python will automatically:
+- ✅ Capture your REPORT
+- ✅ Save it to the MCP session
+- ✅ Pass it to other AI reviewers in the next round
 
 ---
 
@@ -179,8 +211,11 @@ Focus on:
 - **Accuracy**: Get the facts right
 - **Clarity**: Make issues easy to understand
 - **Actionability**: Provide concrete solutions
+- **Use ONLY the data provided above**: Don't explore or search for more
 
-Begin writing your comprehensive code review REPORT now!
+---
+
+**Now write your comprehensive code review REPORT based on the data provided above.**
 """
 
 
@@ -321,41 +356,52 @@ Structure your review like this:
 - Key areas for improvement: ...
 ```
 
-### Reference Data (If Needed)
+### Reference Data (For Context)
 
-If you need to check the original code changes:
+The original code changes are provided below for your reference:
 
 <details>
-<summary>Original Curated Changes</summary>
+<summary>Original Curated Changes (Click to expand)</summary>
 
 {curated_data}
 
 </details>
 
+**Note**: You don't need to re-analyze all the code. Focus on reviewing CLAUDE's REPORT.
+
 ### Reporting Progress (Optional)
 
 ```python
 review_report_progress("{session_id}", "{ai_name}", "Reviewing CLAUDE's security findings...")
-review_report_progress("{session_id}", "{ai_name}", "Checking for missed issues...")
 ```
 
-### Submitting Your Critique
+This is **completely optional**.
 
-```python
-review_submit_review("{session_id}", "{ai_name}", your_critique_markdown)
-```
+---
+
+## How to Submit Your Critique
+
+**You don't need to do anything special!**
+
+Just write your critique in markdown format as your response. Python will automatically:
+- ✅ Capture your critique
+- ✅ Save it to the MCP session
+- ✅ Pass it to CLAUDE for refinement
 
 ---
 
 ## Important Notes
 
 - 🎯 **Be honest and critical**: Truth over politeness
-- 📊 **Provide evidence**: Reference specific code
+- 📊 **Provide evidence**: Reference specific code from CLAUDE's report
 - 🤝 **Be constructive**: Help improve the report
 - 🔍 **Look for gaps**: What did CLAUDE miss?
 - 💭 **Consider context**: Maybe CLAUDE saw something you didn't
+- ❌ **Don't use MCP tools or run git commands**: All data is already provided
 
-Begin your critical review now!
+---
+
+**Now write your critical review of CLAUDE's REPORT.**
 """
 
 
@@ -494,15 +540,18 @@ Include all previous content plus refinements based on accepted feedback.
 ### Reporting Progress (Optional)
 
 ```python
-review_report_progress("{session_id}", "CLAUDE", "Evaluating feedback from reviewers...")
-review_report_progress("{session_id}", "CLAUDE", "Refining report based on valid concerns...")
+review_report_progress("{session_id}", "CLAUDE", "Evaluating feedback...")
 ```
 
-### Submitting Your Decision
+This is **completely optional**.
 
-```python
-review_submit_review("{session_id}", "CLAUDE", your_decision_markdown)
-```
+---
+
+## How to Submit Your Decision
+
+**You don't need to do anything special!**
+
+Just write your decision (NO_CHANGES_NEEDED or REPORT_NEEDS_REFINEMENT with refined report) as your response. Python will automatically process it.
 
 ---
 
@@ -635,14 +684,18 @@ I cannot agree with this report because:
 ### Reporting Progress (Optional)
 
 ```python
-review_report_progress("{session_id}", "{ai_name}", "Making final consensus decision...")
+review_report_progress("{session_id}", "{ai_name}", "Making final decision...")
 ```
 
-### Submitting Your Decision
+This is **completely optional**.
 
-```python
-review_submit_review("{session_id}", "{ai_name}", your_decision_markdown)
-```
+---
+
+## How to Submit Your Decision
+
+**You don't need to do anything special!**
+
+Just write your decision (YES or NO with reasons) as your response. Python will automatically process it.
 
 ---
 
