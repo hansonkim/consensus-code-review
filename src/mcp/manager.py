@@ -6,6 +6,7 @@ MCP 서버들을 관리하고 AI에게 도구 목록을 제공합니다.
 from typing import Dict, List, Any
 from .filesystem import FileSystemMCP
 from .git import GitMCP
+from .review_orchestrator import ReviewOrchestrator
 
 
 class MCPManager:
@@ -19,9 +20,11 @@ class MCPManager:
         """
         self.filesystem = FileSystemMCP(root_dir)
         self.git = GitMCP()
+        self.orchestrator = ReviewOrchestrator()
         self.servers = {
             "filesystem": self.filesystem,
-            "git": self.git
+            "git": self.git,
+            "review": self.orchestrator
         }
 
     def get_all_tools(self) -> Dict[str, List[Dict[str, str]]]:

@@ -15,31 +15,84 @@ class GitMCP:
         self.timeout = 30  # 30초 타임아웃
 
     def get_diff(self, base: str, head: str = "HEAD") -> str:
-        """두 커밋/브랜치 간의 diff 조회
+        """⚠️ DEPRECATED: 이 도구는 거의 항상 토큰 제한을 초과합니다!
+
+        ❌ 이 도구를 사용하지 마세요! ❌
+
+        대신 이렇게 하세요:
+        1. git_get_diff_stats() - 통계 확인
+        2. git_get_changed_files() - 파일 목록
+        3. git_get_file_diff() - 각 파일 개별 조회
 
         Args:
             base: 기준 커밋/브랜치
-            head: 비교 대상 커밋/브랜치 (기본: HEAD)
+            head: 비교 대상 커밋/브랜치
 
         Returns:
-            Git diff 출력
+            항상 에러 발생 (도구를 사용하지 말 것)
 
         Raises:
-            RuntimeError: Git 명령 실패 시
+            RuntimeError: 항상 발생 (이 도구를 사용하지 말라는 안내)
         """
+        # 통계만 확인해서 얼마나 큰지 보여주기
         try:
-            result = subprocess.run(
-                ["git", "diff", f"{base}...{head}"],
+            stats_result = subprocess.run(
+                ["git", "diff", f"{base}...{head}", "--shortstat"],
                 capture_output=True,
                 text=True,
                 timeout=self.timeout,
                 check=True
             )
-            return result.stdout
-        except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Git diff 실패: {e.stderr}")
-        except subprocess.TimeoutExpired:
-            raise RuntimeError("Git diff 타임아웃")
+
+            files_result = subprocess.run(
+                ["git", "diff", f"{base}...{head}", "--name-only"],
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+                check=True
+            )
+            changed_files = [f for f in files_result.stdout.split('\n') if f.strip()]
+
+            stats_line = stats_result.stdout.strip()
+            if stats_line:
+                import re
+                match = re.search(r'(\d+) insertion|(\d+) deletion', stats_line)
+                insertions = int(match.group(1)) if match and match.group(1) else 0
+                deletions = int(match.group(2)) if match and match.group(2) else 0
+                total_changes = insertions + deletions
+            else:
+                total_changes = 0
+
+        except Exception:
+            total_changes = 0
+            changed_files = []
+
+        # 항상 에러 (이 도구를 사용하지 말 것!)
+        raise RuntimeError(
+            f"❌ ❌ ❌ git_get_diff() is DEPRECATED - DO NOT USE! ❌ ❌ ❌\n\n"
+            f"📊 This change is too large for a single diff:\n"
+            f"   - Files changed: {len(changed_files)}\n"
+            f"   - Lines changed: {total_changes:,}\n"
+            f"   - Estimated tokens: {total_changes * 2:,} (likely exceeds limit)\n\n"
+            f"✅ ✅ ✅ CORRECT APPROACH ✅ ✅ ✅\n\n"
+            f"1️⃣ Get overview:\n"
+            f"   stats = git_get_diff_stats('{base}', '{head}')\n\n"
+            f"2️⃣ Get file list:\n"
+            f"   files = git_get_changed_files('{base}', '{head}')\n\n"
+            f"3️⃣ Read files ONE BY ONE:\n"
+            f"   for file in important_files:  # Select strategically!\n"
+            f"       diff = git_get_file_diff(file, '{base}', '{head}')\n"
+            f"       # Analyze this file\n\n"
+            f"4️⃣ Focus on important files:\n"
+            f"   - Security-sensitive (auth, database, API)\n"
+            f"   - Large changes (>100 lines)\n"
+            f"   - Core logic files\n\n"
+            f"📁 Changed files (first 15):\n"
+            f"{chr(10).join('   - ' + f for f in changed_files[:15])}\n"
+            f"{'   ... and ' + str(len(changed_files) - 15) + ' more files' if len(changed_files) > 15 else ''}\n\n"
+            f"🚫 NEVER call git_get_diff() again!\n"
+            f"✅ ALWAYS use git_get_file_diff() for selective reading!\n"
+        )
 
     def get_changed_files(self, base: str, head: str = "HEAD") -> List[str]:
         """변경된 파일 목록 조회
@@ -225,50 +278,54 @@ class GitMCP:
     def get_available_tools(self) -> List[Dict[str, str]]:
         """사용 가능한 MCP 도구 목록 반환
 
+        ⚠️ 중요: git_get_diff()와 git_get_diff_stats()는 의도적으로 제외됨
+
+        이유:
+        - git_get_diff(): 거의 항상 토큰 제한 초과 (100K+ 토큰)
+        - git_get_diff_stats(): AI에게 전체 diff를 보고 싶게 만드는 "미끼"
+
+        올바른 워크플로우:
+        1. git_get_changed_files() - 파일 목록 확인
+        2. 중요한 파일 전략적 선택
+        3. git_get_file_diff() - 각 파일 개별 조회
+
         Returns:
-            도구 목록
+            도구 목록 (git_get_diff, git_get_diff_stats 제외)
         """
         return [
             {
-                "name": "get_diff",
-                "description": "두 커밋/브랜치 간의 전체 diff 조회",
-                "parameters": "base: str, head: str = 'HEAD'",
-                "example": 'get_diff("main", "feature-branch")'
-            },
-            {
                 "name": "get_changed_files",
-                "description": "변경된 파일 목록만 조회",
+                "description": "변경된 파일 목록 조회 (파일 경로만, diff 내용 없음)",
                 "parameters": "base: str, head: str = 'HEAD'",
-                "example": 'get_changed_files("main")'
+                "example": 'get_changed_files("main")',
+                "note": "⭐ 첫 단계: 어떤 파일이 변경되었는지 확인"
             },
             {
                 "name": "get_file_diff",
-                "description": "특정 파일의 diff만 조회",
+                "description": "⭐ 특정 파일의 diff 조회 - 가장 중요한 도구!",
                 "parameters": "path: str, base: str, head: str = 'HEAD'",
-                "example": 'get_file_diff("src/main.py", "main")'
+                "example": 'get_file_diff("src/main.py", "main")',
+                "note": "한 번에 한 파일씩 조회. 중요한 파일만 전략적으로 선택!"
             },
             {
                 "name": "get_blame",
                 "description": "파일 특정 줄의 작성자/커밋 정보 조회",
                 "parameters": "path: str, line_start: int, line_end: int = None",
-                "example": 'get_blame("src/main.py", 45, 50)'
+                "example": 'get_blame("src/main.py", 45, 50)',
+                "note": "특정 코드를 누가 언제 작성했는지 확인"
             },
             {
                 "name": "get_commit_info",
                 "description": "커밋 정보 조회 (메시지, 작성자, 날짜)",
                 "parameters": "commit_hash: str",
-                "example": 'get_commit_info("abc123")'
+                "example": 'get_commit_info("abc123")',
+                "note": "특정 커밋의 상세 정보 확인"
             },
             {
                 "name": "get_current_branch",
                 "description": "현재 브랜치 이름 조회",
                 "parameters": "없음",
-                "example": 'get_current_branch()'
-            },
-            {
-                "name": "get_diff_stats",
-                "description": "Diff 통계 조회 (변경 파일 수, 추가/삭제 줄)",
-                "parameters": "base: str, head: str = 'HEAD'",
-                "example": 'get_diff_stats("main")'
+                "example": 'get_current_branch()',
+                "note": "현재 작업 중인 브랜치 확인"
             }
         ]

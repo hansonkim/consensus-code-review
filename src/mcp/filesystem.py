@@ -3,8 +3,6 @@
 AI가 파일 시스템을 읽고 탐색할 수 있도록 하는 MCP 도구들을 제공합니다.
 """
 
-import os
-import glob
 from pathlib import Path
 from typing import List, Dict, Optional
 
