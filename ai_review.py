@@ -328,6 +328,8 @@ def execute_review_process(
     allow_early_exit: bool,
     use_mcp: bool,
     verbose: bool,
+    review_mode: str = "file",
+    base_branch: str = None,
 ) -> tuple:
     """리뷰 프로세스 실행 (Phase 1-3)
 
@@ -338,15 +340,22 @@ def execute_review_process(
         allow_early_exit: 조기 종료 허용 여부
         use_mcp: MCP 사용 여부
         verbose: 상세 출력 여부
+        review_mode: 리뷰 모드 (file, directory, staged, commits, branch)
+        base_branch: 기준 브랜치 (Git 모드용)
 
     Returns:
         (initial_reviews, verification_history, final_review) 튜플
     """
     ai_client = AIClient()
 
-    # Phase 1: 독립적 초기 리뷰
+    # Phase 1: 독립적 초기 리뷰 (MCP 기반)
     phase1 = Phase1Reviewer(ai_client, use_mcp=use_mcp, verbose=verbose)
-    initial_reviews = phase1.execute(files, available_ais)
+    initial_reviews = phase1.execute(
+        files,
+        available_ais,
+        base_branch=base_branch,
+        review_mode=review_mode
+    )
 
     # Phase 2: 비판적 검증
     phase2 = Phase2Reviewer(
@@ -473,6 +482,8 @@ def main() -> None:
             allow_early_exit=not args.no_early_exit,
             use_mcp=not args.no_mcp,
             verbose=args.verbose,
+            review_mode=review_mode,
+            base_branch=target_path if review_mode in ["branch", "commits"] else None,
         )
 
         # 7. 문서 저장

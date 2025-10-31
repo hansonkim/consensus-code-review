@@ -1,70 +1,95 @@
-"""Phase 1: 독립적 초기 리뷰 모듈
+"""Phase 1: 독립적 초기 리뷰 모듈 (MCP 기반)
 
-각 AI가 독립적으로 코드를 분석하는 Phase 1을 담당합니다.
+각 AI가 MCP 도구를 활용하여 독립적으로 코드를 분석하는 Phase 1을 담당합니다.
+파일 내용을 프롬프트에 포함하지 않고, AI가 직접 MCP로 읽도록 위임합니다.
 """
 
 import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 # ai_cli_tools 모듈 경로 추가
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 
 from ai_cli_tools import AIClient, AIModel
+from src.mcp import MCPManager
 
 
 class Phase1Reviewer:
-    """Phase 1 독립적 초기 리뷰 실행기"""
+    """Phase 1 독립적 초기 리뷰 실행기 (MCP 기반)"""
 
     def __init__(self, ai_client: AIClient, use_mcp: bool = True, verbose: bool = False):
         """초기화
 
         Args:
             ai_client: AI 클라이언트
-            use_mcp: MCP 사용 여부
+            use_mcp: MCP 사용 여부 (현재는 항상 True)
             verbose: 상세 출력 여부
         """
         self.ai_client = ai_client
         self.use_mcp = use_mcp
         self.verbose = verbose
+        self.mcp_manager = MCPManager() if use_mcp else None
 
     def execute(
-        self, files: List[str], available_ais: Dict[str, AIModel]
+        self,
+        files: List[str],
+        available_ais: Dict[str, AIModel],
+        base_branch: Optional[str] = None,
+        review_mode: str = "file"
     ) -> Dict[str, str]:
         """Phase 1 실행 (병렬)
 
         Args:
-            files: 리뷰할 파일 목록
+            files: 리뷰할 파일 목록 (경로만)
             available_ais: 사용 가능한 AI 모델들
+            base_branch: 기준 브랜치 (branch/commits 모드용)
+            review_mode: 리뷰 모드 (file, directory, staged, commits, branch)
 
         Returns:
             {ai_name: review_response} 형태의 딕셔너리
         """
         print("\n" + "=" * 70)
-        print("Phase 1: 독립적 초기 리뷰")
+        print("Phase 1: 독립적 초기 리뷰 (MCP 기반)")
         print("=" * 70)
         print(f"참여 AI: {len(available_ais)}개")
         print(f"리뷰 파일: {len(files)}개")
+
+        if self.use_mcp:
+            print(f"MCP 모드: 활성화 - AI가 직접 파일 읽기")
         print()
 
-        # 파일 내용 읽기
-        code_content = self._read_files(files)
+        # Git 컨텍스트 수집 (MCP 사용 시)
+        git_context = None
+        if self.use_mcp and base_branch:
+            try:
+                git_context = self.mcp_manager.get_context_for_review(base_branch)
+                if git_context.get("diff_stats"):
+                    stats = git_context["diff_stats"]
+                    print(f"📊 Git 통계: {stats['files_changed']}개 파일, "
+                          f"+{stats['insertions']}/-{stats['deletions']} 줄")
+            except Exception as e:
+                if self.verbose:
+                    print(f"⚠️  Git 컨텍스트 수집 실패: {e}")
 
-        # 빈 파일 필터링
-        filtered_content = {k: v for k, v in code_content.items() if v.strip()}
-        skipped = len(code_content) - len(filtered_content)
+        # MCP 도구 설명 생성
+        mcp_tools_doc = ""
+        if self.use_mcp and self.mcp_manager:
+            mcp_tools_doc = self.mcp_manager.generate_tool_description()
 
-        if skipped > 0:
-            print(f"⚠️  {skipped}개 파일 스킵 (빈 내용 또는 읽기 실패)")
+        # 프롬프트 생성 (파일 내용 없이)
+        prompt = self._generate_mcp_delegated_prompt(
+            files,
+            review_mode,
+            base_branch,
+            git_context,
+            mcp_tools_doc
+        )
 
-        if not filtered_content:
-            raise RuntimeError("읽을 수 있는 파일이 없습니다")
-
-        print(f"✓ {len(filtered_content)}개 파일 리뷰 준비 완료\n")
-
-        # 프롬프트 생성
-        prompt = self._generate_initial_review_prompt(filtered_content, list(filtered_content.keys()))
+        if self.verbose:
+            print(f"\n프롬프트 크기: {len(prompt):,} 문자")
+            print(f"프롬프트 줄 수: {prompt.count(chr(10)):,} 줄\n")
 
         # 병렬 실행
         reviews = {}
@@ -100,137 +125,246 @@ class Phase1Reviewer:
         print(f"\nPhase 1 완료: {len([r for r in reviews.values() if r])}개 AI 성공\n")
         return reviews
 
-    def _read_files(self, files: List[str]) -> Dict[str, str]:
-        """파일들 읽기
-
-        Args:
-            files: 파일 경로 리스트
-
-        Returns:
-            {파일명: 내용} 딕셔너리
-        """
-        content = {}
-        for file_path in files:
-            try:
-                with open(file_path, encoding="utf-8") as f:
-                    content[file_path] = f.read()
-            except UnicodeDecodeError:
-                # 바이너리 파일은 스킵
-                if self.verbose:
-                    print(f"⚠️  바이너리 파일 스킵: {file_path}")
-            except Exception as e:
-                print(f"⚠️  파일 읽기 실패 {file_path}: {e}")
-                content[file_path] = ""
-
-        return content
-
-    def _generate_initial_review_prompt(
-        self, code_content: Dict[str, str], files: List[str]
+    def _generate_mcp_delegated_prompt(
+        self,
+        files: List[str],
+        review_mode: str,
+        base_branch: Optional[str],
+        git_context: Optional[Dict],
+        mcp_tools_doc: str
     ) -> str:
-        """Phase 1 초기 리뷰 프롬프트 생성
+        """MCP 위임 방식의 프롬프트 생성
+
+        파일 내용을 포함하지 않고, AI가 MCP 도구로 직접 읽도록 지시합니다.
 
         Args:
-            code_content: 파일 내용 딕셔너리
             files: 파일 경로 리스트
+            review_mode: 리뷰 모드
+            base_branch: 기준 브랜치
+            git_context: Git 컨텍스트 정보
+            mcp_tools_doc: MCP 도구 설명
 
         Returns:
             프롬프트 문자열
-
-        Raises:
-            RuntimeError: 프롬프트가 너무 클 때
         """
-        # 프롬프트 크기 추정 (대략적)
-        total_chars = sum(len(content) for content in code_content.values())
-        estimated_tokens = total_chars // 4  # 대략 4 chars = 1 token
+        # 기본 정보
+        prompt = f"""# Code Review Task (Phase 1: Independent Review)
 
-        # 경고 출력
-        if estimated_tokens > 100_000:
-            print(f"⚠️  경고: 프롬프트 크기가 매우 큽니다 (~{estimated_tokens:,} 토큰)")
-            print(f"    일부 AI 모델은 컨텍스트 제한으로 실패할 수 있습니다")
-            print(f"    파일 수: {len(files)}개, 총 문자: {total_chars:,}개\n")
+## Your Role
+You are a professional code reviewer with access to powerful MCP tools.
+Your task is to conduct a thorough, independent code review.
 
-        # 프롬프트 생성
-        prompt = f"""# 코드 리뷰 요청 (Phase 1: 독립적 초기 리뷰)
-
-당신은 전문적인 코드 리뷰어입니다. 다음 코드를 다각도로 분석하고 상세한 리뷰를 제공해주세요.
-
-## 리뷰 대상
-총 {len(files)}개 파일:
-{chr(10).join(f"- {f}" for f in files)}
-
-## 코드 내용
-
+## Review Context
+- **Review Mode**: {review_mode}
+- **Total Files**: {len(files)}
 """
 
-        for file_path, content in code_content.items():
-            prompt += f"""
-### 파일: {file_path}
+        # Git 컨텍스트 추가
+        if git_context:
+            if "current_branch" in git_context:
+                prompt += f"- **Current Branch**: {git_context['current_branch']}\n"
+            if base_branch:
+                prompt += f"- **Base Branch**: {base_branch}\n"
+            if "diff_stats" in git_context:
+                stats = git_context["diff_stats"]
+                prompt += f"- **Changes**: {stats['files_changed']} files, +{stats['insertions']}/-{stats['deletions']} lines\n"
+
+        prompt += "\n"
+
+        # 파일 목록
+        prompt += "## Files to Review\n\n"
+        for i, file_path in enumerate(files, 1):
+            prompt += f"{i}. `{file_path}`\n"
+
+        prompt += "\n"
+
+        # MCP 도구 설명
+        prompt += mcp_tools_doc
+        prompt += "\n"
+
+        # 리뷰 프로세스 지침
+        prompt += """## Review Process
+
+### Step 1: Understand the Changes (REQUIRED)
+
+**For branch/commits/staged mode:**
+```
+1. Use git.get_diff() to see what actually changed
+2. Use git.get_changed_files() to get the file list
+3. Use git.get_diff_stats() to understand the scope
+```
+
+**For file/directory mode:**
+```
+1. Use filesystem.get_file_info() to check file sizes
+2. Prioritize larger or more complex files
+```
+
+### Step 2: Read Files Selectively (SMART APPROACH)
+
+**Don't read everything at once!** Be strategic:
 
 ```
-{content}
+1. Start with git diff to see changed lines
+2. Read only files with significant changes
+3. Skip files with minor formatting changes
+4. Read related files if you suspect issues
 ```
 
-"""
+**Example workflow:**
+```python
+# 1. Check what changed
+diff = git.get_diff("main", "HEAD")  # See the actual changes
 
-        prompt += """
-## 리뷰 지침
+# 2. Get changed files
+changed = git.get_changed_files("main", "HEAD")
 
-다음 관점에서 철저히 분석해주세요:
+# 3. For each significant change, read the file
+for file in changed:
+    if significant_change_detected(file):
+        content = filesystem.read_file(file)
+        # Analyze the content
+```
 
-1. **보안 (Security)**
-   - SQL Injection, XSS, CSRF 등 취약점
-   - 인증/인가 문제
-   - 민감 정보 노출
-   - 안전하지 않은 암호화
+### Step 3: Analyze Context (OPTIONAL)
 
-2. **성능 (Performance)**
-   - 비효율적인 알고리즘
-   - 불필요한 반복 연산
-   - 메모리 누수 가능성
-   - 데이터베이스 쿼리 최적화
+When you find potential issues:
+```
+- git.get_blame(file, line_start, line_end) - Who wrote this code?
+- git.get_commit_info(hash) - What was the original intention?
+- filesystem.read_file(related_file) - Check related code
+```
 
-3. **코드 품질 (Quality)**
-   - 가독성 및 유지보수성
-   - 중복 코드
-   - 복잡도 (Cyclomatic Complexity)
-   - 네이밍 규칙
+### Step 4: Write Your Review (REQUIRED)
 
-4. **아키텍처 (Architecture)**
-   - 설계 원칙 위반 (SOLID, DRY, KISS)
-   - 의존성 관리
-   - 모듈화 및 관심사 분리
-
-5. **버그 및 오류 처리**
-   - 논리적 오류
-   - 예외 처리 누락
-   - 엣지 케이스 처리
-
-## 출력 형식
-
-발견한 각 이슈마다 다음 형식으로 작성해주세요:
+For each issue found, use this format:
 
 ---
-### [심각도] 이슈 제목
-**위치**: `파일명:라인번호` 또는 `파일명:시작라인-종료라인`
-**설명**: 문제에 대한 상세 설명
-**코드**:
+### [SEVERITY] Issue Title
+**Location**: `file:line` or `file:start-end`
+**Description**: Clear explanation of the problem
+**Current Code**:
 ```
-문제가 되는 코드
+The problematic code snippet
 ```
-**제안**:
+**Suggested Fix**:
 ```
-개선된 코드
+The improved code
 ```
-**근거**: 왜 이것이 문제인지, 어떻게 개선되는지 설명
+**Rationale**: Why this is a problem and how the fix helps
 ---
 
-**심각도 레벨**:
-- CRITICAL: 즉시 수정 필요 (보안 취약점, 심각한 버그)
-- MAJOR: 중요한 문제 (성능 저하, 설계 결함)
-- MINOR: 개선 권장 (가독성, 코드 스타일)
-- SUGGESTION: 선택적 개선 (리팩토링 제안)
+## Review Focus Areas
 
-구체적이고 실행 가능한 리뷰를 작성해주세요. 모호한 제안보다는 명확한 개선 방법을 제시해주세요.
+Analyze code from these perspectives:
+
+### 1. Security (CRITICAL)
+- SQL Injection, XSS, CSRF vulnerabilities
+- Authentication/Authorization flaws
+- Sensitive data exposure
+- Insecure cryptography
+- Input validation issues
+
+### 2. Performance (MAJOR)
+- Inefficient algorithms
+- Unnecessary repeated operations
+- Memory leaks
+- Database query optimization
+- Resource management
+
+### 3. Code Quality (MAJOR/MINOR)
+- Readability and maintainability
+- Code duplication (DRY principle)
+- Cyclomatic complexity
+- Naming conventions
+- Comments and documentation
+
+### 4. Architecture (MAJOR)
+- SOLID principles violations
+- Dependency management
+- Modularity and separation of concerns
+- Design patterns misuse
+
+### 5. Bugs and Error Handling (CRITICAL/MAJOR)
+- Logic errors
+- Missing exception handling
+- Edge case handling
+- Race conditions
+
+## Severity Levels
+
+- **CRITICAL**: Security vulnerabilities, data loss risks, critical bugs
+- **MAJOR**: Performance issues, design flaws, important bugs
+- **MINOR**: Code quality, readability, minor optimizations
+- **SUGGESTION**: Nice-to-have improvements, alternative approaches
+
+## Best Practices
+
+✅ **DO:**
+- Start with git diff to see changes
+- Read files selectively based on changes
+- Focus deeply on changed code
+- Provide specific line numbers
+- Show concrete code examples
+- Explain the reasoning behind each finding
+
+❌ **DON'T:**
+- Don't read all files upfront
+- Don't review unchanged code
+- Don't make vague suggestions
+- Don't miss security issues
+- Don't overlook error handling
+
+## Example Workflow
+
+```
+1. git.get_diff("main", "feature-branch")
+   → Observe: src/auth.py changed lines 45-67, added new function
+
+2. filesystem.read_file("src/auth.py")
+   → Review the authentication logic changes
+
+3. FOUND ISSUE: Potential SQL injection at line 52
+
+4. git.get_blame("src/auth.py", 52)
+   → Context: who wrote this, when
+
+5. filesystem.read_file("src/db_utils.py")
+   → Check if there's a safe query function available
+
+6. Write detailed review with the security issue
+```
+
+## Output Format
+
+Start your review with a summary, then list all issues:
+
+```
+# Code Review Summary
+- Files reviewed: X
+- Issues found: Y (Z critical, W major, V minor, U suggestions)
+- Focus areas: [List main concerns]
+
+# Detailed Findings
+
+[Issue 1]
+[Issue 2]
+...
+```
+
+## Ready to Start?
+
+You have all the tools you need. Begin by:
+1. Checking git diff (if applicable)
+2. Reading files strategically
+3. Analyzing thoroughly
+4. Documenting your findings
+
+Use MCP tools wisely. Good luck! 🚀
 """
 
         return prompt
+
+    # Legacy methods removed:
+    # - _read_files() - NO LONGER NEEDED
+    # - File embedding in prompts - DELETED
