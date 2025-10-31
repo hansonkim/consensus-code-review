@@ -204,6 +204,12 @@ class MCPOrchestratedReviewer:
         reviews = {}
         review_summaries = {}
 
+        # 참여 AI 목록 출력
+        print(f"\n🚀 {len(available_ais)}개 AI를 병렬로 실행합니다:")
+        for ai_name, ai_model in available_ais.items():
+            print(f"   • {ai_name.upper()}: {ai_model.model_id}")
+        print()
+
         with ThreadPoolExecutor(max_workers=len(available_ais)) as executor:
             futures = {}
 
@@ -215,7 +221,7 @@ class MCPOrchestratedReviewer:
                     curated_data=curated_data_formatted
                 )
 
-                print(f"[{ai_name}] 독립적 리뷰 시작...")
+                print(f"[{ai_name.upper()}] 🔄 독립적 리뷰 시작...")
                 print(f"   → 큐레이션된 {curated_data_dict['summary']['curated_files']}개 파일 분석 중")
                 if self.verbose:
                     print(f"   → 프롬프트: {len(prompt):,} 문자")
@@ -263,14 +269,14 @@ class MCPOrchestratedReviewer:
                     )
 
                     completed_count += 1
-                    print(f"\n[{ai_name}] ✓ 리뷰 완료 ({completed_count}/{total_ais})")
+                    print(f"\n[{ai_name.upper()}] ✅ 리뷰 완료 ({completed_count}/{total_ais})")
                     print(f"   → Critical: {summary['critical']}개")
                     print(f"   → Major: {summary['major']}개")
                     print(f"   → Minor: {summary['minor']}개")
-                    print(f"   → 총 {len(review)} 자")
+                    print(f"   → 총 {len(review):,} 자")
 
                 except Exception as e:
-                    print(f"\n[{ai_name}] ✗ 리뷰 실패: {e}")
+                    print(f"\n[{ai_name.upper()}] ❌ 리뷰 실패: {e}")
                     reviews[ai_name] = ""
                     review_summaries[ai_name] = {"critical": 0, "major": 0, "minor": 0}
 
@@ -285,7 +291,7 @@ class MCPOrchestratedReviewer:
         print("각 AI가 발견한 이슈:")
         for ai_name in available_ais.keys():
             summary = review_summaries.get(ai_name, {"critical": 0, "major": 0, "minor": 0})
-            print(f"  [{ai_name}] "
+            print(f"  [{ai_name.upper()}] "
                   f"Critical: {summary['critical']}개 | "
                   f"Major: {summary['major']}개 | "
                   f"Minor: {summary['minor']}개")
@@ -337,8 +343,8 @@ class MCPOrchestratedReviewer:
                     other_reviews=other_reviews
                 )
 
-                other_ai_names = [r['ai_name'] for r in other_reviews]
-                print(f"[{ai_name}] 비판적 검토 시작")
+                other_ai_names = [r['ai_name'].upper() for r in other_reviews]
+                print(f"[{ai_name.upper()}] 🔍 비판적 검토 시작")
                 print(f"   → 검토 대상: {', '.join(other_ai_names)}")
 
                 future = executor.submit(
@@ -383,7 +389,7 @@ class MCPOrchestratedReviewer:
                     )
 
                     completed_count += 1
-                    print(f"\n[{ai_name}] ✓ 검토 완료 ({completed_count}/{total_ais})")
+                    print(f"\n[{ai_name.upper()}] ✅ 검토 완료 ({completed_count}/{total_ais})")
                     print(f"   → 동의: {stats['agreed']}개 이슈")
                     print(f"   → 부분 동의: {stats['partial']}개 이슈")
                     print(f"   → 반대: {stats['disagreed']}개 이슈")
@@ -391,7 +397,7 @@ class MCPOrchestratedReviewer:
                         print(f"   → 새로 발견: {stats['new_issues']}개 이슈")
 
                 except Exception as e:
-                    print(f"\n[{ai_name}] ✗ 검토 실패: {e}")
+                    print(f"\n[{ai_name.upper()}] ❌ 검토 실패: {e}")
                     reviews[ai_name] = ""
                     consensus_stats[ai_name] = {
                         "agreed": 0, "partial": 0, "disagreed": 0, "new_issues": 0
@@ -411,7 +417,7 @@ class MCPOrchestratedReviewer:
             total_reviewed = stats.get('agreed', 0) + stats.get('partial', 0) + stats.get('disagreed', 0)
             if total_reviewed > 0:
                 agree_pct = (stats.get('agreed', 0) / total_reviewed) * 100
-                print(f"  [{ai_name}] "
+                print(f"  [{ai_name.upper()}] "
                       f"동의 {agree_pct:.0f}% | "
                       f"부분동의 {stats.get('partial', 0)}개 | "
                       f"반대 {stats.get('disagreed', 0)}개")

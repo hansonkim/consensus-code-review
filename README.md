@@ -49,14 +49,58 @@ pip install -r requirements.txt
 ### 사용법
 
 ```bash
-# Git diff 리뷰
-python src/phase1_reviewer_mcp_orchestrated.py --base develop
+# Git diff 리뷰 (자동으로 모든 AI 감지)
+python review.py --base develop
 
 # 특정 브랜치와 비교
-python src/phase1_reviewer_mcp_orchestrated.py --base main --target feature/new-feature
+python review.py --base main --target feature/new-feature
 
-# AI 선택 (선택사항)
-python src/phase1_reviewer_mcp_orchestrated.py --base develop --ais claude,gpt4
+# 특정 AI만 사용
+python review.py --base develop --ais claude,gpt4
+
+# 상세 출력 모드
+python review.py --base develop --verbose
+```
+
+### 출력 예시
+
+```
+🤖 AI Code Review System - Pure Task Delegation
+======================================================================
+
+🔍 AI CLI 자동 감지 중...
+
+  ✅ CLAUDE: claude-sonnet-4.5
+  ✅ GPT4: gpt-4-turbo
+  ✅ GEMINI: gemini-1.5-pro
+
+📊 총 3개 AI가 리뷰에 참여합니다
+
+======================================================================
+Round 1: Independent Review
+======================================================================
+
+🚀 3개 AI를 병렬로 실행합니다:
+   • CLAUDE: claude-sonnet-4.5
+   • GPT4: gpt-4-turbo
+   • GEMINI: gemini-1.5-pro
+
+[CLAUDE] 🔄 독립적 리뷰 시작...
+   → 큐레이션된 15개 파일 분석 중
+[GPT4] 🔄 독립적 리뷰 시작...
+   → 큐레이션된 15개 파일 분석 중
+[GEMINI] 🔄 독립적 리뷰 시작...
+   → 큐레이션된 15개 파일 분석 중
+
+⏳ AI 리뷰 진행 중... (실시간 progress)
+
+  [CLAUDE] 📡 Analyzing security issues in auth.py...
+  [GPT4] 📡 Checking database migrations...
+
+[CLAUDE] ✅ 리뷰 완료 (1/3)
+   → Critical: 3개
+   → Major: 5개
+   → Minor: 8개
 ```
 
 ## 📋 MCP Tools (9개)
