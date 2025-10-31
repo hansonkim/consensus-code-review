@@ -216,6 +216,9 @@ uv run python ai_code_review.py --branch
 # 최대 검증 라운드 수 지정 (기본: 3)
 uv run python ai_code_review.py ./src/main.py --max-rounds 5
 
+# 최대 파일 수 제한 (대규모 리뷰 시 권장)
+uv run python ai_code_review.py --branch develop --max-files 20
+
 # 특정 AI만 사용 (기본: 모든 사용 가능한 AI)
 uv run python ai_code_review.py ./src/main.py --only claude,gemini
 
@@ -231,6 +234,29 @@ uv run python ai_code_review.py ./src/main.py --no-early-exit
 # AI CLI 캐시 강제 갱신
 uv run python ai_code_review.py ./src/main.py --force-refresh
 ```
+
+#### 💡 대규모 리뷰 팁
+
+파일이 많을 때는 AI 모델의 컨텍스트 제한으로 실패할 수 있습니다:
+
+```bash
+# 1. 파일 수 제한 (권장: 20-30개)
+ai-review --branch develop --max-files 20
+
+# 2. 특정 확장자만 필터링
+ai-review --branch develop --extensions .py
+
+# 3. 특정 디렉토리만 리뷰
+ai-review ./src/core/ --max-files 30
+
+# 4. 조합 사용
+ai-review --branch develop --extensions .py,.js --max-files 25
+```
+
+**경고 메시지:**
+- 30개 이상 파일: 자동 경고 및 권장사항 표시
+- 100,000 토큰 초과: 프롬프트 크기 경고
+- 빈 파일: 자동 필터링 및 스킵 알림
 
 ### 실행 예시
 
