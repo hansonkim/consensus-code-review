@@ -11,9 +11,10 @@ AI에게는 Git/Filesystem 탐색 도구를 제공하지 않습니다.
 from .manager import MCPManager
 from .review_orchestrator import ReviewOrchestrator
 from .minimal_prompt import (
-    generate_initial_review_prompt,
-    generate_round2_prompt,
-    generate_final_consensus_prompt_with_calculated_consensus
+    generate_claude_initial_report_prompt,
+    generate_reviewer_critique_prompt,
+    generate_claude_refinement_prompt,
+    generate_consensus_check_prompt
 )
 from .consensus_calculator import (
     ConsensusCalculator,
@@ -24,9 +25,10 @@ from .consensus_calculator import (
 __all__ = [
     "MCPManager",
     "ReviewOrchestrator",
-    "generate_initial_review_prompt",
-    "generate_round2_prompt",
-    "generate_final_consensus_prompt_with_calculated_consensus",
+    "generate_claude_initial_report_prompt",
+    "generate_reviewer_critique_prompt",
+    "generate_claude_refinement_prompt",
+    "generate_consensus_check_prompt",
     "ConsensusCalculator",
     "Issue",
     "calculate_consensus_from_session"

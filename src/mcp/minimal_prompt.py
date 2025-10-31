@@ -1,36 +1,38 @@
-"""Minimal Prompts - Pure Task Delegation
+"""Minimal Prompts - CLAUDE-Led Iterative Review
 
-Python이 모든 Git 작업을 수행하고 큐레이션된 데이터만 AI에게 전달합니다.
-AI는 탐색 도구 없이 리뷰 작성에만 집중합니다.
+CLAUDE가 주도적으로 REPORT를 작성하고, 다른 AI들이 검토하는
+iterative refinement 방식입니다.
 
-Pure Task Delegation:
-- Python: 객관적 작업 (Git 조회, 파일 선택, 토큰 관리)
-- AI: 주관적 작업 (데이터 분석, 리뷰 작성)
+CLAUDE-Led Architecture:
+- CLAUDE: REPORT 작성자이자 통합자
+- 다른 AI들: REPORT 검토자
+- Consensus: 자연스러운 수렴 (수정 없음 + 동의)
 """
 
 
-def generate_initial_review_prompt(
+def generate_claude_initial_report_prompt(
     session_id: str,
-    ai_name: str,
     curated_data: str
 ) -> str:
-    """Round 1 프롬프트 - 독립적 초기 리뷰
+    """CLAUDE 초기 REPORT 작성 프롬프트 (Round 1)
 
-    Python이 큐레이션한 변경사항을 직접 전달합니다.
-    AI는 탐색 없이 리뷰만 작성합니다.
+    Python이 큐레이션한 변경사항을 분석하여
+    종합적인 코드 리뷰 REPORT를 작성합니다.
 
     Args:
         session_id: 리뷰 세션 ID
-        ai_name: AI 이름
         curated_data: Python이 큐레이션한 변경사항 (formatted markdown)
 
     Returns:
         프롬프트 문자열
     """
-    return f"""# Code Review Task - Round 1: Independent Review
+    return f"""# Code Review Task - Round 1: Initial Report by CLAUDE
 
 ## Your Role
-You are **{ai_name}**, conducting an independent code review.
+You are **CLAUDE**, the **Lead Reviewer** in this MCP environment.
+
+Your responsibility is to write a comprehensive code review REPORT that will be
+reviewed and refined through multiple rounds with other AI reviewers.
 
 **Session ID**: `{session_id}`
 
@@ -38,12 +40,8 @@ You are **{ai_name}**, conducting an independent code review.
 
 ## Code Changes (Curated by Python)
 
-Python has already examined the Git repository and selected the most important
-files for you to review, based on:
-- Security sensitivity (auth, database, API)
-- Code complexity and size
-- Business logic importance
-- Token budget constraints
+Python has examined the Git repository and selected the most important files
+for review based on security, complexity, and business impact:
 
 {curated_data}
 
@@ -51,207 +49,294 @@ files for you to review, based on:
 
 ## Your Task
 
-Analyze the curated changes above and write a comprehensive code review.
+Write a comprehensive code review REPORT analyzing all changes above.
 
-### Focus Areas
-
-1. **Security Issues** 🔒
-   - Authentication/authorization problems
-   - Input validation missing
-   - SQL injection, XSS, CSRF vulnerabilities
-   - Hardcoded secrets or credentials
-   - Insecure data handling
-
-2. **Logic Errors** ⚙️
-   - Incorrect algorithms
-   - Edge cases not handled
-   - Race conditions
-   - Data consistency issues
-   - Null pointer risks
-
-3. **Performance Problems** 🚀
-   - Inefficient database queries
-   - Memory leaks
-   - N+1 query problems
-   - Unnecessary computation
-   - Missing indexes
-
-4. **Code Quality** 📝
-   - Poor naming conventions
-   - Code duplication
-   - Missing error handling
-   - Lack of tests
-   - Violated SOLID principles
-
-### Review Format
-
-Structure your review using this format:
+### Report Structure
 
 ```markdown
-# Code Review by {ai_name}
+# Code Review Report by CLAUDE
 
-## Critical Issues
+## Executive Summary
 
-### [CRITICAL] Issue Title
-**Location**: `file.py:42`
-**Problem**: Clear description of what's wrong
-**Impact**: What could go wrong (security breach, data loss, etc.)
-**Fix**: Specific, actionable solution with code example if possible
+- **Total Files Changed**: X files
+- **Critical Issues Found**: Y issues (🚨 must fix)
+- **Major Issues Found**: Z issues (⚠️ should fix)
+- **Minor Issues Found**: W issues (📝 consider fixing)
+- **Overall Assessment**: [APPROVE / APPROVE WITH CHANGES / REJECT]
 
-## Major Issues
+---
 
-### [MAJOR] Issue Title
-**Location**: `file.py:100`
-**Problem**: Description
-**Impact**: Why it matters
-**Fix**: How to solve it
+## Critical Issues (Must Fix Before Merge) 🚨
 
-## Minor Issues
+### 1. [CRITICAL] Issue Title
+
+**Location**: `file.py:42-45`
+
+**Problem**:
+Clear description of what's wrong. Be specific about:
+- What code pattern is problematic
+- Why it's critical (security risk, data loss potential, etc.)
+
+**Impact**:
+Concrete consequences if not fixed:
+- Security: SQL injection allows database access
+- Data: User data could be exposed
+- System: Application could crash
+
+**Evidence**:
+```python
+# Current problematic code:
+def unsafe_query(user_input):
+    query = f"SELECT * FROM users WHERE id = {{user_input}}"
+    return db.execute(query)  # ❌ SQL injection vulnerability
+```
+
+**Solution**:
+Step-by-step fix with code example:
+
+```python
+# Fixed code:
+def safe_query(user_input):
+    query = "SELECT * FROM users WHERE id = ?"
+    return db.execute(query, [user_input])  # ✅ Parameterized query
+```
+
+**Priority**: P0 - Block merge
+
+---
+
+## Major Issues (Should Fix) ⚠️
+
+[Same detailed format as Critical, but with Priority P1-P2]
+
+---
+
+## Minor Issues (Consider Fixing) 📝
+
+[Shorter format - location, problem, quick fix]
 
 ### [MINOR] Issue Title
 **Location**: `file.py:200`
-**Problem**: Description
-**Fix**: Simple solution
+**Problem**: Brief description
+**Fix**: Quick solution
 
-## Positive Observations
+---
 
-- List good practices worth mentioning
-- Acknowledge well-written code
+## Positive Observations ✅
+
+List good practices worth mentioning:
+- Well-structured error handling in auth module
+- Comprehensive test coverage for new features
+- Clear documentation and comments
 ```
 
-### Reporting Progress (Optional but Recommended)
+### Important Guidelines
 
-While writing your review, you can report progress to help users see what you're working on:
+#### ✅ What You SHOULD Do
+
+- **Be specific**: Cite exact file paths and line numbers
+- **Prioritize ruthlessly**: P0 (blocker) vs P1 (important) vs P2 (nice-to-have)
+- **Provide evidence**: Show the problematic code
+- **Give actionable fixes**: Include code examples
+- **Consider security first**: Auth, validation, injection risks
+- **Think about edge cases**: Null checks, error handling
+- **Check performance**: N+1 queries, memory leaks
+
+#### ❌ What You Should NOT Do
+
+- **Don't be vague**: "Fix the bug" isn't helpful
+- **Don't just list files**: Explain what's wrong
+- **Don't skip evidence**: Always show code snippets
+- **Don't forget impacts**: Explain consequences
+- **Don't ignore good code**: Acknowledge what's well done
+
+### Reporting Progress (Recommended)
+
+While writing your review, report progress for visibility:
 
 ```python
-review_report_progress("{session_id}", "{ai_name}", "Analyzing security issues in auth.py...")
-review_report_progress("{session_id}", "{ai_name}", "Checking database migrations for issues...")
-review_report_progress("{session_id}", "{ai_name}", "Reviewing API endpoint changes...")
+review_report_progress("{session_id}", "CLAUDE", "Analyzing security patterns in authentication...")
+review_report_progress("{session_id}", "CLAUDE", "Reviewing database query safety...")
+review_report_progress("{session_id}", "CLAUDE", "Checking error handling and edge cases...")
 ```
 
-This provides **real-time visibility** into your review process!
+### Submitting Your Report
 
-### Submitting Your Review
-
-After writing your review, submit it using:
+After completing your review:
 
 ```python
-review_submit_review("{session_id}", "{ai_name}", your_review_markdown)
+review_submit_review("{session_id}", "CLAUDE", your_report_markdown)
 ```
 
 ---
 
-## Important Notes
+## Remember
 
-- ✅ **All data you need is provided above** - no exploration needed
-- 📝 **Be specific**: Mention exact file paths and line numbers from the diffs
-- 🎯 **Prioritize**: Critical > Major > Minor based on severity
-- 💡 **Provide actionable solutions**: Don't just point out problems
-- 🔍 **Look at context**: Consider how changes interact with each other
-- 📡 **Report progress**: Use `report_progress()` to keep users informed while you work
+This is your **initial REPORT**. Other AI reviewers will critique it, and you'll
+have opportunities to refine it in subsequent rounds.
 
-Begin your independent review now!
+Focus on:
+- **Accuracy**: Get the facts right
+- **Clarity**: Make issues easy to understand
+- **Actionability**: Provide concrete solutions
+
+Begin writing your comprehensive code review REPORT now!
 """
 
 
-def generate_round2_prompt(
+def generate_reviewer_critique_prompt(
     session_id: str,
     ai_name: str,
-    other_reviews: list
+    claude_report: str,
+    curated_data: str
 ) -> str:
-    """Round 2 프롬프트 - 상호 검토 및 합의 구축
-
-    다른 AI들의 리뷰를 비판적으로 검토합니다.
+    """다른 AI들이 CLAUDE REPORT를 검토하는 프롬프트
 
     Args:
         session_id: 세션 ID
-        ai_name: AI 이름
-        other_reviews: 다른 AI들의 리뷰 목록
+        ai_name: 검토자 AI 이름
+        claude_report: CLAUDE가 작성한 REPORT
+        curated_data: 원본 큐레이션 데이터 (필요시 참조)
 
     Returns:
         프롬프트 문자열
     """
-    other_reviews_text = "\n\n---\n\n".join([
-        f"## Review by {review['ai_name']}\n\n{review['review']}"
-        for review in other_reviews
-    ])
-
-    return f"""# Code Review Task - Round 2: Peer Review & Consensus Building
+    return f"""# Code Review Task - Critique CLAUDE's Report
 
 ## Your Role
-You are **{ai_name}**, critically reviewing other AIs' findings.
+You are **{ai_name}**, reviewing CLAUDE's code review REPORT.
 
 **Session ID**: `{session_id}`
 
 ---
 
-## Other AI Reviews
+## CLAUDE's Report
 
-{other_reviews_text}
+{claude_report}
 
 ---
 
 ## Your Task
 
-Critically analyze each review above and build consensus.
+Critically review CLAUDE's report and provide feedback.
 
-### For Each Issue Raised
+### For Each Issue CLAUDE Raised
 
 Mark your stance clearly:
 
-- ✅ **AGREE**: Valid finding with correct fix
-  - Why you agree
-  - Any additional context
-
-- ⚠️ **PARTIALLY AGREE**: Valid concern but solution needs improvement
-  - What's correct
-  - What needs changing
-  - Better solution
-
-- ❌ **DISAGREE**: Not a real problem or misunderstood code
-  - Why it's not an issue
-  - What they misunderstood
-  - Evidence from code
-
-### Critique Format
+#### ✅ AGREE: Valid issue with correct analysis
 
 ```markdown
-# Round 2 Critique by {ai_name}
+### ✅ AGREE: "[Issue Title from CLAUDE]"
 
-## Issues I Strongly Agree With
+**Why I agree**:
+- The problem is correctly identified
+- Impact assessment is accurate
+- Proposed fix is appropriate
 
-### ✅ [AI Name]'s "[Issue Title]"
-**Why I agree**: [Explanation]
-**Additional context**: [If any]
-
-## Issues I Partially Agree With
-
-### ⚠️ [AI Name]'s "[Issue Title]"
-**What's correct**: [Valid parts]
-**What needs improvement**: [Issues with their fix]
-**Better solution**: [Your alternative]
-
-## Issues I Disagree With
-
-### ❌ [AI Name]'s "[Issue Title]"
-**Why it's not an issue**: [Explanation]
-**What they missed**: [Context they didn't consider]
-
-## Additional Issues They Missed
-
-### [NEW] Issue Title
-**Location**: `file.py:50`
-**Problem**: [What others didn't catch]
-**Fix**: [Solution]
+**Additional context** (if any):
+- Edge case to consider: ...
+- Alternative solution: ...
 ```
+
+#### ⚠️ NEEDS_CHANGE: Valid concern but needs improvement
+
+```markdown
+### ⚠️ NEEDS_CHANGE: "[Issue Title]"
+
+**What's correct**:
+- Core problem is real
+
+**What needs improvement**:
+- Priority should be P0 not P1 because...
+- Impact is more severe: ...
+- Better fix would be: ...
+
+**Suggested changes**:
+[More accurate description or better solution]
+```
+
+#### ❌ DISAGREE: Not a real problem
+
+```markdown
+### ❌ DISAGREE: "[Issue Title]"
+
+**Why it's not an issue**:
+- Code is actually correct because...
+- Context CLAUDE missed: ...
+
+**Evidence**:
+```python
+# The code is safe because:
+# [Explanation]
+```
+```
+
+#### 💡 MISSING: Issues CLAUDE didn't catch
+
+```markdown
+### 💡 MISSING: New Issue Title
+
+**Location**: `file.py:80`
+**Problem**: CLAUDE missed this issue...
+**Severity**: [Critical/Major/Minor]
+**Fix**: How to solve it
+```
+
+### Your Critique Format
+
+Structure your review like this:
+
+```markdown
+# Critique of CLAUDE's Report by {ai_name}
+
+## Summary
+- Issues I agree with: X
+- Issues needing changes: Y
+- Issues I disagree with: Z
+- Missing issues I found: W
+
+## Detailed Feedback
+
+### ✅ Issues I Agree With
+
+[List with brief confirmation]
+
+### ⚠️ Issues Needing Changes
+
+[Detailed feedback with improvements]
+
+### ❌ Issues I Disagree With
+
+[Clear reasoning with evidence]
+
+### 💡 Missing Issues
+
+[New issues CLAUDE didn't catch]
+
+## Overall Assessment
+
+- CLAUDE's report quality: [Excellent/Good/Needs Improvement]
+- Key strengths: ...
+- Key areas for improvement: ...
+```
+
+### Reference Data (If Needed)
+
+If you need to check the original code changes:
+
+<details>
+<summary>Original Curated Changes</summary>
+
+{curated_data}
+
+</details>
 
 ### Reporting Progress (Optional)
 
-You can report what you're reviewing in real-time:
-
 ```python
-review_report_progress("{session_id}", "{ai_name}", "Reviewing Claude's security findings...")
-review_report_progress("{session_id}", "{ai_name}", "Analyzing GPT-4's performance suggestions...")
+review_report_progress("{session_id}", "{ai_name}", "Reviewing CLAUDE's security findings...")
+review_report_progress("{session_id}", "{ai_name}", "Checking for missed issues...")
 ```
 
 ### Submitting Your Critique
@@ -264,201 +349,318 @@ review_submit_review("{session_id}", "{ai_name}", your_critique_markdown)
 
 ## Important Notes
 
-- 🎯 **Be honest and critical**: The goal is truth, not politeness
-- 📊 **Provide evidence**: Reference specific code from the diffs
-- 🤝 **Build consensus**: Find common ground where possible
-- 💭 **Consider perspectives**: Maybe they saw something you didn't
-- 📡 **Report progress**: Use `report_progress()` to keep users informed
+- 🎯 **Be honest and critical**: Truth over politeness
+- 📊 **Provide evidence**: Reference specific code
+- 🤝 **Be constructive**: Help improve the report
+- 🔍 **Look for gaps**: What did CLAUDE miss?
+- 💭 **Consider context**: Maybe CLAUDE saw something you didn't
 
-Start your critical review now!
+Begin your critical review now!
 """
 
 
-def generate_final_consensus_prompt_with_calculated_consensus(
+def generate_claude_refinement_prompt(
     session_id: str,
-    ai_name: str,
-    consensus_text: str,
-    total_ais: int
+    current_report: str,
+    reviews: list,
+    round_num: int
 ) -> str:
-    """Final Round 프롬프트 - Python 계산 consensus 기반 리포트 작성
-
-    Python이 이미 모든 리뷰를 분석하고 consensus를 계산했습니다.
-    AI는 계산된 결과를 바탕으로 최종 리포트만 작성합니다.
+    """CLAUDE가 검토를 반영하여 REPORT 수정 판단 프롬프트
 
     Args:
         session_id: 세션 ID
-        ai_name: AI 이름
-        consensus_text: Python이 계산한 consensus (formatted)
-        total_ais: 참여한 총 AI 수
+        current_report: 현재 CLAUDE REPORT
+        reviews: 다른 AI들의 검토 목록
+        round_num: 현재 라운드 번호
 
     Returns:
         프롬프트 문자열
     """
-    return f"""# Code Review Task - Final Round: Write Consensus Report
+    reviews_text = "\n\n---\n\n".join([
+        f"## Review by {review['ai_name']}\n\n{review['review']}"
+        for review in reviews
+    ])
+
+    return f"""# Code Review Task - Round {round_num}: Refine Your Report
 
 ## Your Role
-You are **{ai_name}**, writing the final consensus report for the development team.
+You are **CLAUDE**, the Lead Reviewer, reviewing feedback on your REPORT.
 
 **Session ID**: `{session_id}`
-**Total AIs Participated**: {total_ais}
 
 ---
 
-## Calculated Consensus (Python Analysis)
+## Your Current Report
 
-Python has analyzed all {total_ais} AI reviews and calculated consensus levels:
+{current_report}
 
-{consensus_text}
+---
+
+## Feedback from Other AI Reviewers
+
+{reviews_text}
 
 ---
 
 ## Your Task
 
-Write a **professional, actionable final report** based on the calculated consensus above.
+Critically evaluate the feedback and decide whether to refine your REPORT.
 
-### Report Structure
+### Step 1: Evaluate Each Feedback
+
+For each piece of feedback, decide:
+
+#### ✅ ACCEPT: Valid improvement
+
+- **Feedback**: [What they said]
+- **Decision**: ACCEPT
+- **Reason**: They caught a real issue / Their fix is better / I missed important context
+- **Action**: Update REPORT accordingly
+
+#### 🤔 PARTIALLY ACCEPT: Some merit
+
+- **Feedback**: [What they said]
+- **Decision**: PARTIALLY ACCEPT
+- **Reason**: Core concern is valid, but their solution has issues
+- **Action**: Modify REPORT with better solution
+
+#### ❌ REJECT: Not convincing
+
+- **Feedback**: [What they said]
+- **Decision**: REJECT
+- **Reason**: They misunderstood the code / Their concern isn't valid / Evidence contradicts
+- **Action**: Keep REPORT as is (maybe add clarification)
+
+### Step 2: Make Your Decision
+
+After evaluating all feedback, choose ONE:
+
+#### Option A: NO_CHANGES_NEEDED
+
+If you believe your current REPORT is accurate and complete:
 
 ```markdown
-# Final Code Review Report
+# DECISION: NO_CHANGES_NEEDED
 
-## Executive Summary
+## Evaluation Summary
+- Accepted: X feedbacks
+- Partially accepted: Y feedbacks
+- Rejected: Z feedbacks
 
-- **Critical Issues**: X issues (100% AI agreement - **Must fix before merge**)
-- **Major Issues**: Y issues (≥66% AI agreement - **Should fix**)
-- **Minor Issues**: Z issues (≥33% AI agreement - **Consider fixing**)
-- **Disputed Issues**: W issues (Disagreement exists - **Team decision needed**)
+## Why No Changes Needed
 
-**Overall Assessment**: [APPROVE / APPROVE WITH CHANGES / REJECT]
+The current REPORT is accurate and comprehensive because:
+1. All valid feedback has already been addressed in current version
+2. Rejected feedback was based on misunderstandings
+3. No critical issues were missed
 
----
+## Final Report Confirmation
 
-## Critical Issues (Must Fix Before Merge) 🚨
-
-All {total_ais} AIs agree these are blocking issues.
-
-### 1. [CRITICAL] Issue Title
-
-**Location**: `file.py:42`
-**Consensus**: {total_ais}/{total_ais} AIs agree
-
-**Problem**:
-[Clear description of the problem]
-
-**Impact**:
-[What could go wrong - be specific about consequences]
-
-**Solution**:
-[Step-by-step fix with code example if possible]
-
-```python
-# Example fix:
-def secure_function(user_input):
-    # Sanitize input before using
-    cleaned = sanitize(user_input)
-    return process(cleaned)
+[Confirm that current report is final]
 ```
 
-**Priority**: P0 - Block merge until fixed
+**Important**: If you choose this, other AIs will be asked for final agreement.
+If they don't agree, we'll proceed to another round.
 
----
+#### Option B: REPORT_NEEDS_REFINEMENT
 
-## Major Issues (Should Fix) ⚠️
+If feedback reveals issues that need addressing:
 
-Most AIs (≥66%) agree these should be addressed.
+```markdown
+# DECISION: REPORT_NEEDS_REFINEMENT
 
-[Same format as Critical, but with Priority P1-P2]
+## Evaluation Summary
+- Accepted: X feedbacks
+- Partially accepted: Y feedbacks
+- Rejected: Z feedbacks
 
----
+## Changes Being Made
 
-## Minor Issues (Consider Fixing) 📝
+### 1. [Change Description]
+**Based on**: {ai_name}'s feedback
+**What's changing**: ...
+**Why**: ...
 
-Some AIs (≥33%) flagged these for improvement.
+### 2. [Change Description]
+...
 
-[Shorter format - just location, problem, and quick fix suggestion]
+## Refined Report
 
----
+[Write your updated, improved REPORT here]
 
-## Disputed Issues (Team Decision Needed) 🤔
-
-These issues have disagreement among AIs. Team should decide.
-
-### Issue Title
-
-**Consensus**: X/{total_ais} AIs flagged this
-
-**Arguments For**:
-- [AI1's reasoning]
-- [AI2's reasoning]
-
-**Arguments Against**:
-- [AI3's reasoning]
-
-**Recommendation**: [Your balanced take]
-
----
-
-## Recommendations
-
-1. **Immediate Actions** (before merge):
-   - Fix all Critical issues
-   - Review Major issues with team
-
-2. **Follow-up Actions** (after merge):
-   - Address Minor issues in next sprint
-   - Discuss Disputed issues in team meeting
-
-3. **Next Steps**:
-   - [ ] Developer fixes Critical issues
-   - [ ] Re-run code review
-   - [ ] Run full test suite
-   - [ ] Security scan if applicable
+Include all previous content plus refinements based on accepted feedback.
 ```
 
 ### Reporting Progress (Optional)
 
-While writing the final report, you can report your progress:
-
 ```python
-review_report_progress("{session_id}", "{ai_name}", "Writing executive summary...")
-review_report_progress("{session_id}", "{ai_name}", "Documenting critical issues...")
-review_report_progress("{session_id}", "{ai_name}", "Adding code examples for fixes...")
+review_report_progress("{session_id}", "CLAUDE", "Evaluating feedback from reviewers...")
+review_report_progress("{session_id}", "CLAUDE", "Refining report based on valid concerns...")
 ```
 
-### Submitting Final Report
+### Submitting Your Decision
 
 ```python
-review_finalize_review("{session_id}", your_final_report_markdown)
+review_submit_review("{session_id}", "CLAUDE", your_decision_markdown)
 ```
 
 ---
 
 ## Important Guidelines
 
-### ✅ What You SHOULD Do
+### Critical Thinking Required
 
-- **Synthesize consensus**: Combine similar findings clearly
-- **Prioritize ruthlessly**: P0 blockers vs nice-to-haves
-- **Provide actionable fixes**: Developers should know exactly what to do
-- **Be professional**: This goes to the development team
-- **Add context**: Explain WHY issues matter
+- **Don't blindly accept**: Other AIs can be wrong
+- **Don't stubbornly reject**: They might see what you missed
+- **Evaluate evidence**: Who has stronger reasoning?
+- **Consider severity**: Missing a critical issue is worse than false positive
 
-### ❌ What You Should NOT Do
+### Quality Standards
 
-- **Don't recalculate consensus**: Python already did it accurately
-- **Don't re-read reviews**: All consensus is calculated above
-- **Don't add new issues**: Stick to what AIs found (unless critical)
-- **Don't be vague**: "Fix the bug" isn't helpful
+Your REPORT should be:
+- ✅ **Accurate**: No false positives or missed criticals
+- ✅ **Complete**: All important issues covered
+- ✅ **Actionable**: Clear fixes provided
+- ✅ **Prioritized**: P0 vs P1 vs P2 correctly assigned
+
+### When to Stop Refining
+
+Choose NO_CHANGES_NEEDED when:
+- All critical issues are accurately reported
+- All major issues are covered
+- Fixes are clear and actionable
+- No significant gaps remain
+
+It's better to do one more round than to finalize an incomplete report.
 
 ---
 
-## Remember
+Begin evaluating the feedback and making your decision now!
+"""
 
-This report will be used by developers to:
-- Decide if code can be merged
-- Prioritize fixes
-- Understand security/quality risks
 
-Make it **clear**, **specific**, and **actionable**!
+def generate_consensus_check_prompt(
+    session_id: str,
+    ai_name: str,
+    claude_final_report: str
+) -> str:
+    """다른 AI들이 CLAUDE의 최종 REPORT에 동의하는지 확인
 
-Begin writing the final report now.
+    Args:
+        session_id: 세션 ID
+        ai_name: AI 이름
+        claude_final_report: CLAUDE의 최종 REPORT
+
+    Returns:
+        프롬프트 문자열
+    """
+    return f"""# Code Review Task - Final Consensus Check
+
+## Your Role
+You are **{ai_name}**, making a final decision on CLAUDE's REPORT.
+
+**Session ID**: `{session_id}`
+
+---
+
+## CLAUDE's Final Report
+
+CLAUDE has indicated that no further changes are needed.
+
+{claude_final_report}
+
+---
+
+## Your Task
+
+Make a simple YES/NO decision: Do you agree with this REPORT as the final output?
+
+### Option A: YES - I Agree
+
+If you believe the REPORT is accurate and ready to be delivered:
+
+```markdown
+# DECISION: YES
+
+## I Agree With This Report
+
+This report is comprehensive and accurate because:
+- All critical issues are correctly identified
+- Priorities are appropriately assigned
+- Solutions are actionable and correct
+- No significant issues are missing
+
+**Final confirmation**: This report is ready for delivery to the development team.
+```
+
+### Option B: NO - I Disagree
+
+If you still have concerns that need addressing:
+
+```markdown
+# DECISION: NO
+
+## I Disagree - Issues Remain
+
+I cannot agree with this report because:
+
+### Critical Concerns Still Unaddressed
+
+1. **[Issue Title]**
+   - **Problem**: CLAUDE's report still has...
+   - **Why it matters**: This could cause...
+   - **Must fix**: ...
+
+### Missing Critical Issues
+
+2. **[New Issue]**
+   - **Location**: `file.py:X`
+   - **Problem**: This wasn't caught...
+   - **Severity**: Critical/Major
+
+---
+
+**Bottom line**: Report needs one more round to address these concerns.
+```
+
+---
+
+## Important Notes
+
+- ⚖️ **Be fair**: Has CLAUDE addressed your previous feedback?
+- 🎯 **Focus on blockers**: Don't reject over minor disagreements
+- 📊 **Consider evidence**: Is your concern valid or preference?
+- 🤝 **Build consensus**: Agreement is the goal, but not at the cost of quality
+
+### Reporting Progress (Optional)
+
+```python
+review_report_progress("{session_id}", "{ai_name}", "Making final consensus decision...")
+```
+
+### Submitting Your Decision
+
+```python
+review_submit_review("{session_id}", "{ai_name}", your_decision_markdown)
+```
+
+---
+
+## Decision Criteria
+
+### Say YES if:
+- All P0 issues are correctly identified
+- All P1 issues are covered
+- Fixes are clear and correct
+- Your previous feedback was addressed
+
+### Say NO only if:
+- Critical issue missed (security, data loss, crash)
+- Major issue misclassified as minor
+- Proposed fix is incorrect/dangerous
+- Your valid feedback was ignored without reason
+
+---
+
+Make your decision now: YES or NO?
 """

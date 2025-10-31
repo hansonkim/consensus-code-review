@@ -1,11 +1,17 @@
-"""Phase 1: MCP-Orchestrated Multi-Round Review
+"""Phase 1: CLAUDE-Led Iterative Review
 
-AI에게 변경 내역을 전달하지 않고, 해야 할 일만 알려줍니다.
-MCP Server가 AI들 간의 협업을 중재하며 합의점을 찾습니다.
+CLAUDE MCP 환경에서 CLAUDE가 주도적으로 REPORT를 작성하고,
+다른 AI들이 검토하는 iterative refinement 방식입니다.
+
+Architecture:
+- CLAUDE: REPORT 작성자이자 통합자 (Lead Reviewer)
+- 다른 AI들: REPORT 검토자 (Reviewers)
+- Consensus: 자연스러운 수렴 (CLAUDE "수정 없음" + 다른 AI들 "동의")
 """
 
 import os
 import sys
+import re
 from typing import Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
@@ -15,16 +21,16 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 from ai_cli_tools import AIClient, AIModel
 from src.mcp import MCPManager
 from src.mcp.minimal_prompt import (
-    generate_initial_review_prompt,
-    generate_round2_prompt,
-    generate_final_consensus_prompt_with_calculated_consensus
+    generate_claude_initial_report_prompt,
+    generate_reviewer_critique_prompt,
+    generate_claude_refinement_prompt,
+    generate_consensus_check_prompt
 )
-from src.mcp.consensus_calculator import calculate_consensus_from_session
 from src.data_curator import DataCurator
 
 
 class MCPOrchestratedReviewer:
-    """MCP 오케스트레이션 기반 코드 리뷰어"""
+    """CLAUDE-Led Iterative Review 시스템"""
 
     def __init__(self, ai_client: AIClient, verbose: bool = False):
         """초기화
@@ -42,9 +48,9 @@ class MCPOrchestratedReviewer:
         available_ais: Dict[str, AIModel],
         base_branch: str,
         target_branch: str = "HEAD",
-        max_rounds: int = 3
+        max_rounds: int = 5
     ) -> Dict:
-        """MCP 오케스트레이션 실행
+        """CLAUDE-Led Iterative Review 실행
 
         Args:
             available_ais: 사용 가능한 AI 모델들
@@ -53,14 +59,27 @@ class MCPOrchestratedReviewer:
             max_rounds: 최대 라운드 수
 
         Returns:
-            최종 합의 리뷰 결과
+            최종 REPORT 결과
         """
         print("\n" + "=" * 70)
-        print("MCP-Orchestrated Multi-Round Code Review")
+        print("CLAUDE-Led Iterative Code Review")
         print("=" * 70)
-        print(f"참여 AI: {len(available_ais)}개")
-        print(f"Base: {base_branch} → Target: {target_branch}")
-        print(f"최대 라운드: {max_rounds}")
+
+        # CLAUDE는 필수
+        if "claude" not in available_ais:
+            raise ValueError(
+                "CLAUDE is required in MCP environment. "
+                "This is a CLAUDE-Led review system."
+            )
+
+        claude_model = available_ais["claude"]
+        other_ais = {k: v for k, v in available_ais.items() if k != "claude"}
+
+        print(f"👑 Lead Reviewer: CLAUDE ({claude_model.model_id})")
+        print(f"🔍 Reviewers: {len(other_ais)}개 AI")
+        for ai_name, ai_model in other_ais.items():
+            print(f"   • {ai_name.upper()}: {ai_model.model_id}")
+        print(f"🔄 Max Rounds: {max_rounds}")
         print()
 
         # 1. 리뷰 세션 생성
@@ -74,575 +93,445 @@ class MCPOrchestratedReviewer:
         print(f"✅ 세션 생성: {session_id}")
         print()
 
-        # 2. Round 1: 독립적 초기 리뷰
-        print("=" * 70)
-        print("Round 1: Independent Review")
-        print("=" * 70)
+        # 2. 데이터 큐레이션
+        print("📊 Python이 변경사항을 큐레이션하는 중...")
+        curator = DataCurator()
+        curated_result = curator.curate(base_branch, target_branch)
 
-        round1_reviews = self._execute_round1(
+        if curated_result["status"] == "error":
+            raise RuntimeError(f"Curation 실패: {curated_result['error']}")
+
+        curated_data = curated_result["formatted_output"]
+        summary = curated_result["summary"]
+
+        print(f"   ✅ {summary['curated_files']}개 파일 선택 완료")
+        print(f"   → 총 변경사항: {summary['total_files']}개 파일")
+        print()
+
+        # 3. Round 1: CLAUDE 초기 REPORT 작성
+        print("=" * 70)
+        print("Round 1: Initial Report by CLAUDE")
+        print("=" * 70)
+        print()
+
+        claude_report = self._claude_initial_report(
             session_id,
-            available_ais,
+            claude_model,
+            curated_data
+        )
+
+        # 4. Iterative Refinement Loop
+        for round_num in range(2, max_rounds + 1):
+            print("\n" + "=" * 70)
+            print(f"Round {round_num}: Review and Refine")
+            print("=" * 70)
+            print()
+
+            # 4a. 다른 AI들이 CLAUDE REPORT 검토 (병렬)
+            reviews = self._parallel_reviews(
+                session_id,
+                other_ais,
+                claude_report,
+                curated_data,
+                round_num
+            )
+
+            if not reviews:
+                print("⚠️  검토자가 없습니다. CLAUDE REPORT를 최종 결과로 사용합니다.")
+                break
+
+            # 4b. CLAUDE가 검토를 읽고 판단
+            decision = self._claude_refine(
+                session_id,
+                claude_model,
+                claude_report,
+                reviews,
+                round_num
+            )
+
+            # 4c. CLAUDE 판단에 따라 분기
+            if decision["no_changes_needed"]:
+                print("\n[CLAUDE] ✓ 더 이상 수정할 내용 없음")
+                print()
+
+                # 4d. Consensus 체크
+                consensus = self._check_consensus(
+                    session_id,
+                    other_ais,
+                    claude_report
+                )
+
+                if consensus["agreed"]:
+                    print("✅ 합의 완료! 모든 AI가 최종 REPORT에 동의했습니다.")
+                    break
+                else:
+                    print("⚠️  일부 AI가 동의하지 않습니다:")
+                    for ai_name in consensus["disagreed_ais"]:
+                        print(f"   • {ai_name.upper()}")
+
+                    if round_num < max_rounds:
+                        print(f"\n→ Round {round_num + 1}로 진행합니다...")
+                    else:
+                        print("\n⚠️  Max rounds 도달. 현재 REPORT를 최종 결과로 사용합니다.")
+            else:
+                # 4e. REPORT 수정 후 다음 Round
+                claude_report = decision["refined_report"]
+                print(f"\n[CLAUDE] ✏️ REPORT 수정 완료 → Round {round_num + 1}로 진행")
+
+        # 5. 최종 REPORT 저장
+        final_result = self._save_final_report(
+            session_id,
+            claude_report,
             base_branch,
             target_branch
         )
 
-        # 모든 AI가 제출했는지 확인
-        consensus = self.mcp_manager.call_tool(
-            "review",
-            "check_consensus",
-            session_id=session_id
+        return final_result
+
+    def _claude_initial_report(
+        self,
+        session_id: str,
+        claude_model: AIModel,
+        curated_data: str
+    ) -> str:
+        """CLAUDE 초기 REPORT 작성 (Round 1)"""
+        print("[CLAUDE] 📝 코드 변경사항 분석 중...")
+
+        prompt = generate_claude_initial_report_prompt(
+            session_id=session_id,
+            curated_data=curated_data
         )
 
-        print(f"\n✅ Round 1 완료: {consensus['submitted']}/{consensus['total_ais']} AI 제출")
+        try:
+            response = self.ai_client.call(
+                model=claude_model,
+                prompt=prompt,
+                max_tokens=4000
+            )
+
+            # MCP에 저장
+            self.mcp_manager.call_tool(
+                "review",
+                "submit_review",
+                session_id=session_id,
+                ai_name="CLAUDE",
+                review=response
+            )
+
+            # 통계 추출
+            stats = self._extract_stats(response)
+
+            print(f"[CLAUDE] ✅ 초기 REPORT 작성 완료 ({len(response):,}자)")
+            print(f"   → Critical: {stats['critical']}개")
+            print(f"   → Major: {stats['major']}개")
+            print(f"   → Minor: {stats['minor']}개")
+            print()
+
+            return response
+
+        except Exception as e:
+            print(f"[CLAUDE] ❌ 에러 발생: {e}")
+            raise
+
+    def _parallel_reviews(
+        self,
+        session_id: str,
+        other_ais: Dict[str, AIModel],
+        claude_report: str,
+        curated_data: str,
+        round_num: int
+    ) -> list:
+        """다른 AI들이 CLAUDE REPORT를 병렬로 검토"""
+        if not other_ais:
+            return []
+
+        print(f"🔍 {len(other_ais)}개 AI가 CLAUDE REPORT를 검토합니다:")
+        for ai_name in other_ais.keys():
+            print(f"   • {ai_name.upper()}")
         print()
 
-        # 3. Round 2: 상호 검토 및 합의 구축
-        if max_rounds >= 2:
-            print("=" * 70)
-            print("Round 2: Peer Review & Consensus Building")
-            print("=" * 70)
+        reviews = []
 
-            # 다음 라운드로 진행
-            self.mcp_manager.call_tool(
-                "review",
-                "advance_round",
-                session_id=session_id
-            )
+        with ThreadPoolExecutor(max_workers=len(other_ais)) as executor:
+            futures = {}
 
-            round2_reviews = self._execute_round2(
-                session_id,
-                available_ais
-            )
+            for ai_name, ai_model in other_ais.items():
+                future = executor.submit(
+                    self._single_review,
+                    session_id,
+                    ai_name,
+                    ai_model,
+                    claude_report,
+                    curated_data
+                )
+                futures[future] = ai_name
 
-            consensus = self.mcp_manager.call_tool(
-                "review",
-                "check_consensus",
-                session_id=session_id
-            )
+            # 병렬 실행 결과 수집
+            for future in as_completed(futures):
+                ai_name = futures[future]
+                try:
+                    review = future.result()
+                    reviews.append({
+                        "ai_name": ai_name,
+                        "review": review
+                    })
+                    print(f"[{ai_name.upper()}] ✅ 검토 완료")
+                except Exception as e:
+                    print(f"[{ai_name.upper()}] ❌ 에러: {e}")
 
-            print(f"\n✅ Round 2 완료: {consensus['submitted']}/{consensus['total_ais']} AI 제출")
-            print()
+        print()
+        return reviews
 
-        # 4. Final Round: 최종 합의 리포트
-        if max_rounds >= 3:
-            print("=" * 70)
-            print("Final Round: Consensus Report")
-            print("=" * 70)
+    def _single_review(
+        self,
+        session_id: str,
+        ai_name: str,
+        ai_model: AIModel,
+        claude_report: str,
+        curated_data: str
+    ) -> str:
+        """단일 AI가 CLAUDE REPORT 검토"""
+        print(f"[{ai_name.upper()}] 🔍 검토 시작...")
 
-            # 다음 라운드로 진행
-            self.mcp_manager.call_tool(
-                "review",
-                "advance_round",
-                session_id=session_id
-            )
+        prompt = generate_reviewer_critique_prompt(
+            session_id=session_id,
+            ai_name=ai_name,
+            claude_report=claude_report,
+            curated_data=curated_data
+        )
 
-            final_review = self._execute_final_round(
-                session_id,
-                available_ais
-            )
+        response = self.ai_client.call(
+            model=ai_model,
+            prompt=prompt,
+            max_tokens=3000
+        )
 
-            # 최종 리뷰 확정
-            self.mcp_manager.call_tool(
-                "review",
-                "finalize_review",
-                session_id=session_id,
-                final_review=final_review
-            )
-
-            print(f"\n✅ 최종 합의 완료")
-            print()
-
-        # 5. 세션 정보 반환
-        session_info = self.mcp_manager.call_tool(
+        # MCP에 저장
+        self.mcp_manager.call_tool(
             "review",
-            "get_session_info",
-            session_id=session_id
+            "submit_review",
+            session_id=session_id,
+            ai_name=ai_name,
+            review=response
+        )
+
+        return response
+
+    def _claude_refine(
+        self,
+        session_id: str,
+        claude_model: AIModel,
+        current_report: str,
+        reviews: list,
+        round_num: int
+    ) -> dict:
+        """CLAUDE가 검토를 반영하여 REPORT 수정 판단"""
+        print("[CLAUDE] 🤔 검토 내용 반영 판단 중...")
+
+        prompt = generate_claude_refinement_prompt(
+            session_id=session_id,
+            current_report=current_report,
+            reviews=reviews,
+            round_num=round_num
+        )
+
+        response = self.ai_client.call(
+            model=claude_model,
+            prompt=prompt,
+            max_tokens=5000
+        )
+
+        # MCP에 저장
+        self.mcp_manager.call_tool(
+            "review",
+            "submit_review",
+            session_id=session_id,
+            ai_name="CLAUDE",
+            review=response
+        )
+
+        # 판단 파싱
+        if "NO_CHANGES_NEEDED" in response or "NO CHANGES NEEDED" in response:
+            return {
+                "no_changes_needed": True,
+                "refined_report": current_report
+            }
+        else:
+            # Refined Report 추출
+            refined_report = self._extract_refined_report(response, current_report)
+            return {
+                "no_changes_needed": False,
+                "refined_report": refined_report
+            }
+
+    def _check_consensus(
+        self,
+        session_id: str,
+        other_ais: Dict[str, AIModel],
+        claude_final_report: str
+    ) -> dict:
+        """다른 AI들이 CLAUDE의 최종 REPORT에 동의하는지 확인"""
+        if not other_ais:
+            return {"agreed": True, "disagreed_ais": []}
+
+        print("🤝 최종 합의 확인 중...")
+        print()
+
+        agreements = []
+        disagreed_ais = []
+
+        with ThreadPoolExecutor(max_workers=len(other_ais)) as executor:
+            futures = {}
+
+            for ai_name, ai_model in other_ais.items():
+                future = executor.submit(
+                    self._check_single_agreement,
+                    session_id,
+                    ai_name,
+                    ai_model,
+                    claude_final_report
+                )
+                futures[future] = ai_name
+
+            for future in as_completed(futures):
+                ai_name = futures[future]
+                try:
+                    agreed = future.result()
+                    agreements.append(agreed)
+
+                    if agreed:
+                        print(f"[{ai_name.upper()}] ✅ 최종 REPORT에 동의")
+                    else:
+                        print(f"[{ai_name.upper()}] ❌ 동의하지 않음")
+                        disagreed_ais.append(ai_name)
+                except Exception as e:
+                    print(f"[{ai_name.upper()}] ❌ 에러: {e}")
+                    disagreed_ais.append(ai_name)
+
+        print()
+        return {
+            "agreed": all(agreements) if agreements else True,
+            "disagreed_ais": disagreed_ais
+        }
+
+    def _check_single_agreement(
+        self,
+        session_id: str,
+        ai_name: str,
+        ai_model: AIModel,
+        claude_final_report: str
+    ) -> bool:
+        """단일 AI가 CLAUDE REPORT에 동의하는지 확인"""
+        prompt = generate_consensus_check_prompt(
+            session_id=session_id,
+            ai_name=ai_name,
+            claude_final_report=claude_final_report
+        )
+
+        response = self.ai_client.call(
+            model=ai_model,
+            prompt=prompt,
+            max_tokens=2000
+        )
+
+        # MCP에 저장
+        self.mcp_manager.call_tool(
+            "review",
+            "submit_review",
+            session_id=session_id,
+            ai_name=ai_name,
+            review=response
+        )
+
+        # YES/NO 파싱
+        return "DECISION: YES" in response or "# DECISION: YES" in response
+
+    def _extract_stats(self, report: str) -> dict:
+        """리포트에서 통계 추출"""
+        critical = len(re.findall(r'\[CRITICAL\]|\*\*Critical', report, re.IGNORECASE))
+        major = len(re.findall(r'\[MAJOR\]|\*\*Major', report, re.IGNORECASE))
+        minor = len(re.findall(r'\[MINOR\]|\*\*Minor', report, re.IGNORECASE))
+
+        return {
+            "critical": critical,
+            "major": major,
+            "minor": minor
+        }
+
+    def _extract_refined_report(self, decision_text: str, fallback: str) -> str:
+        """CLAUDE의 refinement decision에서 refined report 추출"""
+        # "## Refined Report" 섹션 찾기
+        match = re.search(
+            r'## Refined Report\s*\n(.*)',
+            decision_text,
+            re.DOTALL | re.IGNORECASE
+        )
+
+        if match:
+            return match.group(1).strip()
+
+        # fallback: DECISION 이후 전체 텍스트
+        match = re.search(
+            r'REPORT_NEEDS_REFINEMENT.*?\n(.*)',
+            decision_text,
+            re.DOTALL
+        )
+
+        if match:
+            return match.group(1).strip()
+
+        # 최후의 fallback: 이전 report 유지
+        return fallback
+
+    def _save_final_report(
+        self,
+        session_id: str,
+        final_report: str,
+        base_branch: str,
+        target_branch: str
+    ) -> dict:
+        """최종 REPORT를 파일로 저장"""
+        import datetime
+        import os
+
+        # 저장 디렉토리 생성
+        reviews_dir = "reviews"
+        os.makedirs(reviews_dir, exist_ok=True)
+
+        # 파일명 생성
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"review_{timestamp}_final.md"
+        filepath = os.path.join(reviews_dir, filename)
+
+        # REPORT 헤더 추가
+        header = f"""# Code Review Report
+
+**Session ID**: `{session_id}`
+**Base Branch**: `{base_branch}`
+**Target Branch**: `{target_branch}`
+**Generated**: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+**Review Type**: CLAUDE-Led Iterative Review
+
+---
+
+"""
+
+        # 파일 저장
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write(header)
+            f.write(final_report)
+
+        # MCP에 최종화 기록
+        self.mcp_manager.call_tool(
+            "review",
+            "finalize_review",
+            session_id=session_id,
+            final_review=final_report
         )
 
         return {
             "session_id": session_id,
-            "session_info": session_info,
-            "round1_reviews": round1_reviews,
-            "round2_reviews": round2_reviews if max_rounds >= 2 else None,
-            "final_review": final_review if max_rounds >= 3 else None
+            "final_review": final_report,
+            "final_review_file": filepath,
+            "status": "success"
         }
-
-    def _execute_round1(
-        self,
-        session_id: str,
-        available_ais: Dict[str, AIModel],
-        base_branch: str,
-        target_branch: str
-    ) -> Dict[str, str]:
-        """Round 1 실행 - Python 큐레이션 + AI 리뷰
-
-        Pure Task Delegation:
-        - Python: Git 조회, 파일 선택, 토큰 관리
-        - AI: 큐레이션된 데이터 분석 및 리뷰 작성
-        """
-
-        # 1. Python이 변경사항 큐레이션 (한 번만)
-        print("\n" + "=" * 70)
-        print("Step 1: Python Data Curation")
-        print("=" * 70)
-
-        curator = DataCurator(token_budget=20000)
-        curated_data_dict = curator.curate_changes(base_branch, target_branch)
-        curated_data_formatted = curator.format_curated_data(curated_data_dict)
-
-        print(f"\n✅ 큐레이션 완료:")
-        print(f"   - 전체 파일: {curated_data_dict['summary']['total_files']}")
-        print(f"   - 선택된 파일: {curated_data_dict['summary']['curated_files']}")
-        print(f"   - 토큰 사용: {curated_data_dict['summary']['token_usage']:,} / 20,000")
-
-        # 2. AI들이 동일한 큐레이션 데이터로 병렬 리뷰
-        print("\n" + "=" * 70)
-        print("Step 2: AI Independent Reviews (Parallel)")
-        print("=" * 70)
-        print()
-
-        reviews = {}
-        review_summaries = {}
-
-        # 참여 AI 목록 출력
-        print(f"\n🚀 {len(available_ais)}개 AI를 병렬로 실행합니다:")
-        for ai_name, ai_model in available_ais.items():
-            print(f"   • {ai_name.upper()}: {ai_model.model_id}")
-        print()
-
-        with ThreadPoolExecutor(max_workers=len(available_ais)) as executor:
-            futures = {}
-
-            for ai_name, ai_model in available_ais.items():
-                # Prompt에 큐레이션된 데이터 포함 - AI는 탐색 불필요!
-                prompt = generate_initial_review_prompt(
-                    session_id=session_id,
-                    ai_name=ai_name,
-                    curated_data=curated_data_formatted
-                )
-
-                print(f"[{ai_name.upper()}] 🔄 독립적 리뷰 시작...")
-                print(f"   → 큐레이션된 {curated_data_dict['summary']['curated_files']}개 파일 분석 중")
-                if self.verbose:
-                    print(f"   → 프롬프트: {len(prompt):,} 문자")
-
-                # AI 호출 (탐색 불필요, 리뷰만)
-                future = executor.submit(
-                    self.ai_client.call_ai_with_retry,
-                    prompt,
-                    ai_model,
-                    []  # No agents needed - just review writing
-                )
-                futures[future] = ai_name
-
-            # 결과 수집 + 실시간 progress 폴링
-            import time
-            last_check = time.time()
-            completed_count = 0
-            total_ais = len(futures)
-
-            print()
-            print("⏳ AI 리뷰 진행 중... (실시간 progress)")
-            print()
-
-            for future in as_completed(futures):
-                # Progress 폴링 (2초마다)
-                if time.time() - last_check > 2:
-                    last_check = self._poll_and_display_progress(session_id, last_check)
-
-                ai_name = futures[future]
-                try:
-                    review = future.result(timeout=600)
-                    reviews[ai_name] = review
-
-                    # 리뷰 요약 추출 (간단한 통계)
-                    summary = self._extract_review_summary(review)
-                    review_summaries[ai_name] = summary
-
-                    # MCP에 리뷰 제출
-                    self.mcp_manager.call_tool(
-                        "review",
-                        "submit_review",
-                        session_id=session_id,
-                        ai_name=ai_name,
-                        review=review
-                    )
-
-                    completed_count += 1
-                    print(f"\n[{ai_name.upper()}] ✅ 리뷰 완료 ({completed_count}/{total_ais})")
-                    print(f"   → Critical: {summary['critical']}개")
-                    print(f"   → Major: {summary['major']}개")
-                    print(f"   → Minor: {summary['minor']}개")
-                    print(f"   → 총 {len(review):,} 자")
-
-                except Exception as e:
-                    print(f"\n[{ai_name.upper()}] ❌ 리뷰 실패: {e}")
-                    reviews[ai_name] = ""
-                    review_summaries[ai_name] = {"critical": 0, "major": 0, "minor": 0}
-
-            # 마지막 progress 체크
-            self._poll_and_display_progress(session_id, last_check)
-
-        # Round 1 요약 출력
-        print("\n" + "=" * 70)
-        print("Round 1 Summary")
-        print("=" * 70)
-        print()
-        print("각 AI가 발견한 이슈:")
-        for ai_name in available_ais.keys():
-            summary = review_summaries.get(ai_name, {"critical": 0, "major": 0, "minor": 0})
-            print(f"  [{ai_name.upper()}] "
-                  f"Critical: {summary['critical']}개 | "
-                  f"Major: {summary['major']}개 | "
-                  f"Minor: {summary['minor']}개")
-
-        total_critical = sum(s['critical'] for s in review_summaries.values())
-        total_major = sum(s['major'] for s in review_summaries.values())
-        total_minor = sum(s['minor'] for s in review_summaries.values())
-
-        print()
-        print(f"총 발견된 이슈 (중복 포함):")
-        print(f"  Critical: {total_critical}개")
-        print(f"  Major: {total_major}개")
-        print(f"  Minor: {total_minor}개")
-        print()
-        print("→ 다음 단계: AI들이 서로의 리뷰를 검토하고 합의 구축")
-
-        return reviews
-
-    def _execute_round2(
-        self,
-        session_id: str,
-        available_ais: Dict[str, AIModel]
-    ) -> Dict[str, str]:
-        """Round 2 실행 - 상호 검토 및 합의 구축"""
-
-        print()
-        print("각 AI가 다른 AI들의 리뷰를 비판적으로 검토합니다...")
-        print()
-
-        reviews = {}
-        consensus_stats = {}
-
-        with ThreadPoolExecutor(max_workers=len(available_ais)) as executor:
-            futures = {}
-
-            for ai_name, ai_model in available_ais.items():
-                # 다른 AI들의 리뷰 가져오기
-                other_reviews = self.mcp_manager.call_tool(
-                    "review",
-                    "get_other_reviews",
-                    session_id=session_id,
-                    ai_name=ai_name
-                )
-
-                # Round 2 prompt 생성
-                prompt = generate_round2_prompt(
-                    session_id=session_id,
-                    ai_name=ai_name,
-                    other_reviews=other_reviews
-                )
-
-                other_ai_names = [r['ai_name'].upper() for r in other_reviews]
-                print(f"[{ai_name.upper()}] 🔍 비판적 검토 시작")
-                print(f"   → 검토 대상: {', '.join(other_ai_names)}")
-
-                future = executor.submit(
-                    self.ai_client.call_ai_with_retry,
-                    prompt,
-                    ai_model,
-                    []  # No agents needed
-                )
-                futures[future] = ai_name
-
-            # 결과 수집 + 실시간 progress 폴링
-            import time
-            last_check = time.time()
-            completed_count = 0
-            total_ais = len(futures)
-
-            print()
-            print("⏳ 비판적 검토 진행 중... (실시간 progress)")
-            print()
-
-            for future in as_completed(futures):
-                # Progress 폴링 (2초마다)
-                if time.time() - last_check > 2:
-                    last_check = self._poll_and_display_progress(session_id, last_check)
-
-                ai_name = futures[future]
-                try:
-                    review = future.result(timeout=600)
-                    reviews[ai_name] = review
-
-                    # 합의 통계 추출
-                    stats = self._extract_consensus_stats(review)
-                    consensus_stats[ai_name] = stats
-
-                    # MCP에 Round 2 리뷰 제출
-                    self.mcp_manager.call_tool(
-                        "review",
-                        "submit_review",
-                        session_id=session_id,
-                        ai_name=ai_name,
-                        review=review
-                    )
-
-                    completed_count += 1
-                    print(f"\n[{ai_name.upper()}] ✅ 검토 완료 ({completed_count}/{total_ais})")
-                    print(f"   → 동의: {stats['agreed']}개 이슈")
-                    print(f"   → 부분 동의: {stats['partial']}개 이슈")
-                    print(f"   → 반대: {stats['disagreed']}개 이슈")
-                    if stats['new_issues'] > 0:
-                        print(f"   → 새로 발견: {stats['new_issues']}개 이슈")
-
-                except Exception as e:
-                    print(f"\n[{ai_name.upper()}] ❌ 검토 실패: {e}")
-                    reviews[ai_name] = ""
-                    consensus_stats[ai_name] = {
-                        "agreed": 0, "partial": 0, "disagreed": 0, "new_issues": 0
-                    }
-
-            # 마지막 progress 체크
-            self._poll_and_display_progress(session_id, last_check)
-
-        # Round 2 요약
-        print("\n" + "=" * 70)
-        print("Round 2 Summary: Consensus Building")
-        print("=" * 70)
-        print()
-        print("각 AI의 동의/반대 분포:")
-        for ai_name in available_ais.keys():
-            stats = consensus_stats.get(ai_name, {})
-            total_reviewed = stats.get('agreed', 0) + stats.get('partial', 0) + stats.get('disagreed', 0)
-            if total_reviewed > 0:
-                agree_pct = (stats.get('agreed', 0) / total_reviewed) * 100
-                print(f"  [{ai_name.upper()}] "
-                      f"동의 {agree_pct:.0f}% | "
-                      f"부분동의 {stats.get('partial', 0)}개 | "
-                      f"반대 {stats.get('disagreed', 0)}개")
-
-        print()
-        print("→ 다음 단계: Python이 자동으로 consensus 계산 후 최종 리포트 생성")
-
-        return reviews
-
-    def _execute_final_round(
-        self,
-        session_id: str,
-        available_ais: Dict[str, AIModel]
-    ) -> str:
-        """Final Round 실행 - Python이 consensus 계산 후 AI가 리포트 작성"""
-
-        # 1. 모든 라운드의 리뷰 가져오기
-        session_info = self.mcp_manager.call_tool(
-            "review",
-            "get_session_info",
-            session_id=session_id
-        )
-
-        total_ais = len(session_info.get('participating_ais', []))
-
-        print()
-        print("=" * 70)
-        print(f"Step 3: Python Consensus Calculation ({total_ais} AIs)")
-        print("=" * 70)
-        print()
-        print("📊 모든 AI 리뷰를 분석하여 합의 수준을 자동 계산 중...")
-        print()
-
-        # 2. Python이 자동으로 consensus 계산
-        try:
-            consensus, calculator = calculate_consensus_from_session(session_info)
-
-            # Consensus 결과 포맷
-            consensus_text = calculator.format_consensus(consensus, total_ais)
-
-            # 통계 출력
-            print("✅ Consensus 계산 완료!")
-            print()
-            print("합의 수준별 이슈 분류:")
-            print()
-
-            # Critical issues
-            if consensus['critical']:
-                print(f"  🚨 Critical Issues: {len(consensus['critical'])}개 (100% 동의 - 반드시 수정)")
-                for issue in consensus['critical'][:3]:  # 상위 3개만 출력
-                    print(f"     - {issue.title} ({issue.location})")
-                    print(f"       동의: {', '.join(sorted(issue.agreed_by))}")
-                if len(consensus['critical']) > 3:
-                    print(f"     ... 외 {len(consensus['critical']) - 3}개")
-                print()
-
-            # Major issues
-            if consensus['major']:
-                print(f"  ⚠️  Major Issues: {len(consensus['major'])}개 (≥66% 동의 - 수정 권장)")
-                for issue in consensus['major'][:3]:
-                    agreement_pct = len(issue.agreed_by) / total_ais * 100
-                    print(f"     - {issue.title} ({issue.location})")
-                    print(f"       동의: {', '.join(sorted(issue.agreed_by))} ({agreement_pct:.0f}%)")
-                if len(consensus['major']) > 3:
-                    print(f"     ... 외 {len(consensus['major']) - 3}개")
-                print()
-
-            # Minor issues
-            if consensus['minor']:
-                print(f"  📝 Minor Issues: {len(consensus['minor'])}개 (≥33% 동의 - 검토 권장)")
-                agreement_counts = {}
-                for issue in consensus['minor']:
-                    count = len(issue.agreed_by)
-                    agreement_counts[count] = agreement_counts.get(count, 0) + 1
-                for count in sorted(agreement_counts.keys(), reverse=True):
-                    print(f"     - {agreement_counts[count]}개 이슈: {count}/{total_ais} AI 동의")
-                print()
-
-            # Disputed issues
-            if consensus['disputed']:
-                print(f"  🤔 Disputed Issues: {len(consensus['disputed'])}개 (의견 불일치 - 팀 판단 필요)")
-                for issue in consensus['disputed'][:2]:
-                    print(f"     - {issue.title} ({issue.location})")
-                    print(f"       찬성: {', '.join(sorted(issue.agreed_by))} | "
-                          f"반대: {', '.join(sorted(issue.disagreed_by))}")
-                if len(consensus['disputed']) > 2:
-                    print(f"     ... 외 {len(consensus['disputed']) - 2}개")
-                print()
-
-            total_issues = (len(consensus['critical']) + len(consensus['major']) +
-                          len(consensus['minor']) + len(consensus['disputed']))
-            print(f"총 {total_issues}개 unique 이슈 발견 (중복 제거 완료)")
-
-        except Exception as e:
-            print(f"⚠️  Consensus 계산 실패: {e}")
-            print(f"ℹ️  Fallback: AI가 직접 계산하게 함")
-            import traceback
-            traceback.print_exc()
-            # Fallback to old method if consensus calculation fails
-            consensus_text = "Python consensus calculation failed. Please calculate manually."
-
-        # 3. 첫 번째 AI가 최종 리포트 작성 (계산된 consensus 기반)
-        print()
-        print("=" * 70)
-        print("Step 4: Final Report Writing")
-        print("=" * 70)
-        print()
-
-        first_ai_name = list(available_ais.keys())[0]
-        first_ai_model = available_ais[first_ai_name]
-
-        print(f"[{first_ai_name}]를 최종 리포트 작성자로 선정")
-        print()
-        print("Python이 계산한 consensus를 바탕으로 전문적인 최종 리포트 작성 중...")
-        print("   → Critical 이슈: 반드시 수정 필요")
-        print("   → Major 이슈: 수정 권장")
-        print("   → Minor 이슈: 검토 권장")
-        print("   → Disputed 이슈: 팀 판단 필요")
-        print()
-
-        # Final consensus prompt (with calculated consensus)
-        prompt = generate_final_consensus_prompt_with_calculated_consensus(
-            session_id=session_id,
-            ai_name=first_ai_name,
-            consensus_text=consensus_text,
-            total_ais=total_ais
-        )
-
-        print("⏳ 최종 리포트 작성 중... (실시간 progress)")
-        print()
-
-        # 병렬로 실행하면서 progress 폴링
-        import time
-        from concurrent.futures import ThreadPoolExecutor
-
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            future = executor.submit(
-                self.ai_client.call_ai_with_retry,
-                prompt,
-                first_ai_model,
-                []  # No agents needed
-            )
-
-            # Progress 폴링 (2초마다)
-            last_check = time.time()
-            while not future.done():
-                time.sleep(2)
-                if time.time() - last_check > 2:
-                    last_check = self._poll_and_display_progress(session_id, last_check)
-
-            final_review = future.result()
-
-            # 마지막 progress 체크
-            self._poll_and_display_progress(session_id, last_check)
-
-        print(f"\n✅ 최종 리포트 완료!")
-        print(f"   → 길이: {len(final_review):,} 자")
-        print(f"   → 작성자: {first_ai_name}")
-        print(f"   → 기반: {total_ais}개 AI의 consensus")
-
-        return final_review
-
-    def _extract_review_summary(self, review: str) -> Dict[str, int]:
-        """리뷰에서 이슈 개수 추출"""
-        import re
-
-        critical_count = len(re.findall(r'\[CRITICAL\]', review, re.IGNORECASE))
-        major_count = len(re.findall(r'\[MAJOR\]', review, re.IGNORECASE))
-        minor_count = len(re.findall(r'\[MINOR\]', review, re.IGNORECASE))
-
-        return {
-            "critical": critical_count,
-            "major": major_count,
-            "minor": minor_count
-        }
-
-    def _extract_consensus_stats(self, review: str) -> Dict[str, int]:
-        """Round 2 리뷰에서 동의/반대 통계 추출"""
-        import re
-
-        # ✅, ⚠️, ❌ 마커로 동의/반대 카운트
-        agreed = len(re.findall(r'✅', review))
-        partial = len(re.findall(r'⚠️', review))
-        disagreed = len(re.findall(r'❌', review))
-
-        # [NEW] 마커로 새로 발견한 이슈 카운트
-        new_issues = len(re.findall(r'\[NEW\]', review, re.IGNORECASE))
-
-        return {
-            "agreed": agreed,
-            "partial": partial,
-            "disagreed": disagreed,
-            "new_issues": new_issues
-        }
-
-    def _poll_and_display_progress(self, session_id: str, last_check: float = 0) -> float:
-        """실시간 진행 상황을 폴링하고 출력
-
-        Args:
-            session_id: 세션 ID
-            last_check: 마지막 확인 timestamp
-
-        Returns:
-            현재 timestamp (다음 폴링에 사용)
-        """
-        import time
-
-        try:
-            # MCP를 통해 progress 조회
-            progress_result = self.mcp_manager.call_tool(
-                "review",
-                "get_progress",
-                session_id=session_id,
-                since=last_check
-            )
-
-            # 새로운 progress 출력
-            for update in progress_result.get("updates", []):
-                ai_name = update["ai_name"]
-                message = update["message"]
-                print(f"  [{ai_name}] 📡 {message}")
-
-        except Exception as e:
-            # 에러는 조용히 무시 (progress는 선택사항)
-            if self.verbose:
-                print(f"  [Progress Poll Error] {e}")
-
-        return time.time()
