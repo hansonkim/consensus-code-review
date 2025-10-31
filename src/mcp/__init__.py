@@ -5,11 +5,9 @@ Pure Task Delegation 아키텍처:
 - AI: 주관적 작업 (데이터 분석, 리뷰 작성)
 
 MCP Server는 Review 세션 관리만 담당하며,
-AI에게는 Git 탐색 도구를 제공하지 않습니다.
+AI에게는 Git/Filesystem 탐색 도구를 제공하지 않습니다.
 """
 
-from .filesystem import FileSystemMCP
-from .git import GitMCP
 from .manager import MCPManager
 from .review_orchestrator import ReviewOrchestrator
 from .minimal_prompt import (
@@ -24,8 +22,6 @@ from .consensus_calculator import (
 )
 
 __all__ = [
-    "FileSystemMCP",
-    "GitMCP",
     "MCPManager",
     "ReviewOrchestrator",
     "generate_initial_review_prompt",
