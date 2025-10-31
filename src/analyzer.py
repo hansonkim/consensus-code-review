@@ -136,12 +136,12 @@ class FileAnalyzer:
             raise RuntimeError("Git 명령 타임아웃")
 
     def analyze_branch_mode(
-        self, base_branch: str = "main", extensions: Optional[List[str]] = None
+        self, base_branch: str = "auto", extensions: Optional[List[str]] = None
     ) -> List[str]:
         """브랜치 모드 분석
 
         Args:
-            base_branch: 기준 브랜치 (기본값: main)
+            base_branch: 기준 브랜치 (기본값: auto - 자동 감지)
             extensions: 확장자 필터
 
         Returns:
@@ -160,6 +160,10 @@ class FileAnalyzer:
                 timeout=10,
             )
             current_branch = current_branch_result.stdout.strip()
+
+            # 기본 브랜치 자동 감지
+            if base_branch == "auto":
+                base_branch = self._detect_base_branch()
 
             # 변경 파일 목록 가져오기
             result = subprocess.run(
@@ -185,6 +189,49 @@ class FileAnalyzer:
             raise RuntimeError(f"Git branch 분석 실패: {e.stderr}")
         except subprocess.TimeoutExpired:
             raise RuntimeError("Git 명령 타임아웃")
+
+    def _detect_base_branch(self) -> str:
+        """기본 브랜치 자동 감지
+
+        Returns:
+            감지된 기본 브랜치 이름
+
+        Raises:
+            RuntimeError: 기본 브랜치를 찾을 수 없을 때
+        """
+        # 일반적인 기본 브랜치 이름들 (우선순위 순)
+        common_base_branches = ["main", "master", "develop", "development"]
+
+        # 모든 브랜치 목록 가져오기
+        try:
+            result = subprocess.run(
+                ["git", "branch", "-a"],
+                capture_output=True,
+                text=True,
+                check=True,
+                timeout=10,
+            )
+
+            branches = [
+                line.strip().replace("* ", "").replace("remotes/origin/", "")
+                for line in result.stdout.split("\n")
+                if line.strip()
+            ]
+
+            # 우선순위에 따라 기본 브랜치 찾기
+            for base in common_base_branches:
+                if base in branches:
+                    return base
+
+            # 찾지 못한 경우 첫 번째 브랜치 사용
+            if branches:
+                return branches[0].replace("* ", "")
+
+            raise RuntimeError("기본 브랜치를 찾을 수 없습니다")
+
+        except subprocess.CalledProcessError:
+            # Git 명령 실패 시 기본값 사용
+            return "main"
 
     def _should_include_file(
         self, file_path: Path, extensions: Optional[List[str]] = None

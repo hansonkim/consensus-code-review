@@ -126,8 +126,10 @@ def parse_arguments() -> argparse.Namespace:
     )
     mode_group.add_argument(
         "--branch",
-        action="store_true",
-        help="현재 브랜치의 변경사항 리뷰 (main 기준)",
+        nargs="?",
+        const="auto",
+        metavar="BASE_BRANCH",
+        help="현재 브랜치의 변경사항 리뷰 (기본: 자동 감지 - main/master/develop)",
     )
 
     # 리뷰 옵션
@@ -190,7 +192,9 @@ def determine_review_mode(args: argparse.Namespace) -> tuple:
     elif args.commits:
         return ("commits", args.commits)
     elif args.branch:
-        return ("branch", None)
+        # args.branch가 True이면 "auto", 문자열이면 그 값 사용
+        base_branch = args.branch if isinstance(args.branch, str) else "auto"
+        return ("branch", base_branch)
     elif args.target:
         path = Path(args.target)
         if path.is_file():
@@ -233,7 +237,9 @@ def analyze_target_files(
         elif review_mode == "commits":
             files = analyzer.analyze_commits_mode(target_path, extensions)
         elif review_mode == "branch":
-            files = analyzer.analyze_branch_mode("main", extensions)
+            # target_path에 base_branch가 전달됨
+            base_branch = target_path if target_path else "auto"
+            files = analyzer.analyze_branch_mode(base_branch, extensions)
         else:
             raise ValueError(f"알 수 없는 리뷰 모드: {review_mode}")
 
