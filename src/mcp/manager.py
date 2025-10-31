@@ -1,29 +1,34 @@
 """MCP Manager
 
 MCP 서버들을 관리하고 AI에게 도구 목록을 제공합니다.
+
+Pure Task Delegation Architecture:
+- Python이 모든 Git/Filesystem 작업을 내부적으로 처리
+- AI는 큐레이션된 데이터만 받아서 리뷰 작성에 집중
+- AI에게는 review session 관리 도구만 제공
 """
 
 from typing import Dict, List, Any
-from .filesystem import FileSystemMCP
-from .git import GitMCP
 from .review_orchestrator import ReviewOrchestrator
 
 
 class MCPManager:
-    """MCP 서버 매니저"""
+    """MCP 서버 매니저 (Pure Task Delegation)
+
+    AI에게 Git/Filesystem 탐색 도구를 제공하지 않습니다.
+    Python이 모든 객관적 작업을 처리하고,
+    AI는 리뷰 작성(주관적 작업)만 수행합니다.
+    """
 
     def __init__(self, root_dir: str = None):
         """초기화
 
         Args:
-            root_dir: 루트 디렉토리
+            root_dir: 루트 디렉토리 (사용되지 않음, 하위 호환성 유지)
         """
-        self.filesystem = FileSystemMCP(root_dir)
-        self.git = GitMCP()
+        # Review session 관리 도구만 제공
         self.orchestrator = ReviewOrchestrator()
         self.servers = {
-            "filesystem": self.filesystem,
-            "git": self.git,
             "review": self.orchestrator
         }
 
@@ -65,7 +70,7 @@ class MCPManager:
         """MCP 도구 호출
 
         Args:
-            server_name: 서버 이름 (filesystem, git)
+            server_name: 서버 이름 (review만 허용)
             tool_name: 도구 이름
             **kwargs: 도구 파라미터
 
@@ -85,25 +90,3 @@ class MCPManager:
 
         method = getattr(server, tool_name)
         return method(**kwargs)
-
-    def get_context_for_review(self, base_branch: str, head_branch: str = "HEAD") -> Dict[str, Any]:
-        """리뷰를 위한 컨텍스트 정보 수집
-
-        Args:
-            base_branch: 기준 브랜치
-            head_branch: 비교 대상 브랜치
-
-        Returns:
-            컨텍스트 정보 딕셔너리
-        """
-        context = {}
-
-        # Git 정보
-        try:
-            context["current_branch"] = self.git.get_current_branch()
-            context["changed_files"] = self.git.get_changed_files(base_branch, head_branch)
-            context["diff_stats"] = self.git.get_diff_stats(base_branch, head_branch)
-        except Exception as e:
-            context["git_error"] = str(e)
-
-        return context
