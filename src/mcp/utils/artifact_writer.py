@@ -8,7 +8,6 @@ Generates and saves review artifacts to disk:
 """
 
 import json
-import os
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
 from ..types import ArtifactPaths
 
 
-async def save_review_artifacts(session: "ReviewSession") -> ArtifactPaths:
+def save_review_artifacts(session: "ReviewSession") -> ArtifactPaths:
     """Save review session results to files
 
     Creates directory structure:
@@ -55,27 +54,27 @@ async def save_review_artifacts(session: "ReviewSession") -> ArtifactPaths:
     review_type = _detect_review_type(session)
 
     # Write review type marker
-    await _write_review_type(session, base_dir, review_type)
+    _write_review_type(session, base_dir, review_type)
 
     # Write initial review if audit type
     if review_type == "audit":
-        await _write_initial_review(session, base_dir)
+        _write_initial_review(session, base_dir)
 
     # Write summary
     from .summary_generator import write_summary_md
-    summary_path = await write_summary_md(session, str(base_dir), review_type)
+    summary_path = write_summary_md(session, str(base_dir), review_type)
 
     # Write full transcript
-    transcript_path = await _write_full_transcript(session, base_dir)
+    transcript_path = _write_full_transcript(session, base_dir)
 
     # Write round files
-    await _write_round_files(session, rounds_dir, review_type)
+    _write_round_files(session, rounds_dir, review_type)
 
     # Write consensus JSON
-    consensus_path = await _write_consensus_json(session, base_dir, review_type)
+    consensus_path = _write_consensus_json(session, base_dir, review_type)
 
     # Write statistics
-    await _write_statistics_json(session, base_dir)
+    _write_statistics_json(session, base_dir)
 
     return ArtifactPaths(
         summary_file=summary_path,
@@ -94,13 +93,13 @@ def _detect_review_type(session: "ReviewSession") -> str:
     return "run"
 
 
-async def _write_review_type(session: "ReviewSession", base_dir: Path, review_type: str) -> None:
+def _write_review_type(session: "ReviewSession", base_dir: Path, review_type: str) -> None:
     """Write review type marker file"""
     type_file = base_dir / "review-type.txt"
     type_file.write_text(f"{review_type}_code_review\n")
 
 
-async def _write_initial_review(session: "ReviewSession", base_dir: Path) -> None:
+def _write_initial_review(session: "ReviewSession", base_dir: Path) -> None:
     """Write initial user review for audit type"""
     if "USER" in session.reviews and 1 in session.reviews["USER"]:
         initial_review = session.reviews["USER"][1]["content"]
@@ -116,7 +115,7 @@ async def _write_initial_review(session: "ReviewSession", base_dir: Path) -> Non
 """)
 
 
-async def _write_full_transcript(session: "ReviewSession", base_dir: Path) -> Path:
+def _write_full_transcript(session: "ReviewSession", base_dir: Path) -> Path:
     """Write complete conversation transcript"""
     transcript_file = base_dir / "full-transcript.md"
 
@@ -151,7 +150,7 @@ async def _write_full_transcript(session: "ReviewSession", base_dir: Path) -> Pa
     return transcript_file
 
 
-async def _write_round_files(session: "ReviewSession", rounds_dir: Path, review_type: str) -> None:
+def _write_round_files(session: "ReviewSession", rounds_dir: Path, review_type: str) -> None:
     """Write individual round review files"""
     for ai_name, rounds in session.reviews.items():
         for round_num, review_data in rounds.items():
@@ -178,7 +177,7 @@ async def _write_round_files(session: "ReviewSession", rounds_dir: Path, review_
             file_path.write_text(content)
 
 
-async def _write_consensus_json(session: "ReviewSession", base_dir: Path, review_type: str) -> Path:
+def _write_consensus_json(session: "ReviewSession", base_dir: Path, review_type: str) -> Path:
     """Write consensus metadata as JSON"""
     consensus_file = base_dir / "consensus.json"
 
@@ -213,7 +212,7 @@ async def _write_consensus_json(session: "ReviewSession", base_dir: Path, review
     return consensus_file
 
 
-async def _write_statistics_json(session: "ReviewSession", base_dir: Path) -> None:
+def _write_statistics_json(session: "ReviewSession", base_dir: Path) -> None:
     """Write review statistics"""
     stats_file = base_dir / "statistics.json"
 

@@ -1,38 +1,39 @@
 """Summary generation utilities for code review reports"""
 
-import aiofiles
-from typing import Dict, List, Any
+from pathlib import Path
+from typing import Any, Dict, List
 
 
-async def write_summary_md(
+def write_summary_md(
     session: 'ReviewSession',
-    base_dir: str
+    base_dir: str,
+    review_type: str
 ) -> str:
     """Write summary markdown file
 
     Args:
         session: Review session
         base_dir: Base directory for files
+        review_type: Type of review (run or audit)
 
     Returns:
         Path to summary file
     """
-    summary_path = f"{base_dir}/summary.md"
+    summary_path = Path(base_dir) / "summary.md"
 
     content = f"# Code Review Summary\n\n"
     content += f"**Session**: {session.session_id}\n"
     content += f"**Branch**: {session.base_branch}...{session.target_branch}\n"
-    content += f"**Type**: {session.review_type}\n\n"
+    content += f"**Type**: {review_type}_code_review\n\n"
     content += "## Final Review\n\n"
     content += session.final_review or "No final review yet"
 
-    async with aiofiles.open(summary_path, "w", encoding="utf-8") as f:
-        await f.write(content)
+    summary_path.write_text(content, encoding="utf-8")
 
-    return summary_path
+    return str(summary_path)
 
 
-async def write_full_transcript(
+def write_full_transcript(
     session: 'ReviewSession',
     base_dir: str
 ) -> str:
@@ -45,12 +46,11 @@ async def write_full_transcript(
     Returns:
         Path to full transcript file
     """
-    transcript_path = f"{base_dir}/full-transcript.md"
+    transcript_path = Path(base_dir) / "full-transcript.md"
 
     content = f"# Full Review Transcript\n\n"
     content += f"**Session**: {session.session_id}\n"
-    content += f"**Branch**: {session.base_branch}...{session.target_branch}\n"
-    content += f"**Type**: {session.review_type}\n\n"
+    content += f"**Branch**: {session.base_branch}...{session.target_branch}\n\n"
 
     # Add all rounds
     for round_num in range(1, session.current_round + 1):
@@ -61,10 +61,9 @@ async def write_full_transcript(
                 content += f"### {ai_name}\n\n"
                 content += rounds[round_num]["content"] + "\n\n"
 
-    async with aiofiles.open(transcript_path, "w", encoding="utf-8") as f:
-        await f.write(content)
+    transcript_path.write_text(content, encoding="utf-8")
 
-    return transcript_path
+    return str(transcript_path)
 
 
 def classify_issues(review_text: str) -> Dict[str, List[str]]:

@@ -25,7 +25,11 @@ class MCPServer:
         self.manager = MCPManager()
 
         # 디버깅을 위한 로그 파일 (활성화)
-        self.log_file = open("/tmp/mcp_server.log", "a")
+        # logs 디렉토리가 없으면 자동 생성
+        log_dir = Path("./logs")
+        log_dir.mkdir(parents=True, exist_ok=True)
+
+        self.log_file = open(log_dir / "mcp_server.log", "a")
         self.log("=" * 70)
         self.log("MCP Server initialized")
 

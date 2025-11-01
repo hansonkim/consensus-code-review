@@ -9,19 +9,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ..review_orchestrator import ReviewSession
 
-from ..types import (
-    ReviewResponse,
-    ConsensusResult,
-    ReviewSummary,
-    ArtifactPaths
-)
-from ..utils import (
-    save_review_artifacts,
-    classify_issues,
-    extract_key_findings,
-    count_tokens,
-    truncate_to_tokens
-)
+from ..types import ConsensusResult, ReviewResponse, ReviewSummary
+from ..utils import classify_issues, save_review_artifacts, truncate_to_tokens
 
 
 def extract_summary(session: "ReviewSession") -> ReviewSummary:
@@ -38,7 +27,14 @@ def extract_summary(session: "ReviewSession") -> ReviewSummary:
 
     # Classify issues by priority
     issues = classify_issues(final_review)
-    key_findings_list = extract_key_findings(final_review, max_findings=10)
+
+    # Extract key findings (simple implementation)
+    lines = final_review.split('\n')
+    key_findings_list = [
+        line.strip()
+        for line in lines
+        if line.strip().startswith(('- ', '* ', '1.', '2.', '3.', '###'))
+    ][:10]  # Limit to 10 findings
 
     return ReviewSummary(
         critical_issues=len(issues.get("critical", [])),
@@ -104,8 +100,9 @@ def extract_final_review(
         Final review text truncated to max_tokens
     """
     if session.final_review:
-        # Use token counting and truncation
-        return truncate_to_tokens(session.final_review, max_tokens)
+        # Use token counting and truncation (returns tuple)
+        truncated_text, was_truncated = truncate_to_tokens(session.final_review, max_tokens)
+        return truncated_text
 
     # If no final review, concatenate latest reviews
     reviews = []
@@ -115,10 +112,11 @@ def extract_final_review(
             reviews.append(f"## {ai_name}\n\n{review_data['content']}")
 
     combined_review = "\n\n".join(reviews)
-    return truncate_to_tokens(combined_review, max_tokens)
+    truncated_text, was_truncated = truncate_to_tokens(combined_review, max_tokens)
+    return truncated_text
 
 
-async def create_review_response(
+def create_review_response(
     session: "ReviewSession",
     verbosity: str = "summary"
 ) -> ReviewResponse:
@@ -138,16 +136,18 @@ async def create_review_response(
     summary = extract_summary(session)
     consensus = extract_consensus(session)
 
-    # Extract final review based on verbosity
+    # Extract final review based on verbosity (must stay < MCP_MAX_TOKENS=25000)
+    from ..utils.token_counter import VERBOSITY_LIMITS
+
     if verbosity == "summary":
-        final_review_text = extract_final_review(session, max_tokens=5000)
+        final_review_text = extract_final_review(session, max_tokens=VERBOSITY_LIMITS["summary"])
     elif verbosity == "detailed":
-        final_review_text = extract_final_review(session, max_tokens=15000)
+        final_review_text = extract_final_review(session, max_tokens=VERBOSITY_LIMITS["detailed"])
     else:  # full
-        final_review_text = extract_final_review(session, max_tokens=50000)
+        final_review_text = extract_final_review(session, max_tokens=VERBOSITY_LIMITS["full"])
 
     # Generate and save artifact files
-    artifacts = await save_review_artifacts(session)
+    artifacts = save_review_artifacts(session)
 
     # Determine status
     status = "COMPLETED" if session.consensus_reached else "IN_PROGRESS"
