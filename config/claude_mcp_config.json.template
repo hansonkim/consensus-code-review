@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "consensus-code-review": {
+      "command": "python3",
+      "args": [
+        "${PROJECT_ROOT}/server.py"
+      ],
+      "description": "Consensus Code Review MCP Server - provides filesystem and git tools for autonomous code review",
+      "env": {
+        "PYTHONPATH": "${PROJECT_ROOT}"
+      }
+    }
+  }
+}
