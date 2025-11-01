@@ -24,8 +24,10 @@ classifiers = [
     "Topic :: Software Development :: Code Generators",
 ]
 
-# 현재는 표준 라이브러리만 사용
-dependencies = []
+# Dependencies
+dependencies = [
+    "tiktoken>=0.5.0",  # Token counting for MCP responses
+]
 
 [project.optional-dependencies]
 dev = [

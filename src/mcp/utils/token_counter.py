@@ -6,6 +6,16 @@ Uses tiktoken for accurate token counting compatible with GPT models.
 import json
 from typing import Any
 
+# MCP protocol maximum token limit
+MCP_MAX_TOKENS = 25000
+
+# Verbosity mode token limits
+VERBOSITY_LIMITS = {
+    "summary": 5000,
+    "detailed": 15000,
+    "full": 50000
+}
+
 
 def count_tokens(text: str, model: str = "gpt-4") -> int:
     """Count tokens in text using tiktoken
@@ -100,6 +110,61 @@ def validate_response_size(response: dict[str, Any], max_tokens: int = 25000) ->
             f"Response size ({token_count} tokens) exceeds MCP limit ({max_tokens}). "
             f"Consider using verbosity='summary' or reducing content."
         )
+
+
+def get_token_stats(text: str, model: str = "gpt-4") -> dict:
+    """Get detailed token statistics for text
+
+    Args:
+        text: Text to analyze
+        model: Model name for encoding
+
+    Returns:
+        Dictionary with token count, character count, and ratio
+    """
+    token_count = count_tokens(text, model)
+    char_count = len(text)
+    ratio = char_count / token_count if token_count > 0 else 0
+
+    return {
+        "tokens": token_count,
+        "characters": char_count,
+        "chars_per_token": ratio
+    }
+
+
+def get_verbosity_limit(verbosity: str) -> int:
+    """Get token limit for verbosity mode
+
+    Args:
+        verbosity: Verbosity mode (summary/detailed/full)
+
+    Returns:
+        Token limit for the mode
+    """
+    limits = {
+        "summary": 5000,
+        "detailed": 15000,
+        "full": 50000
+    }
+    return limits.get(verbosity, 5000)
+
+
+def format_token_warning(token_count: int, limit: int) -> str:
+    """Format warning message about token usage
+
+    Args:
+        token_count: Current token count
+        limit: Token limit
+
+    Returns:
+        Warning message string
+    """
+    if token_count > limit:
+        return f"⚠️  Response exceeds limit: {token_count:,} tokens (limit: {limit:,})"
+    else:
+        percentage = (token_count / limit) * 100
+        return f"✅ Within limit: {token_count:,} tokens ({percentage:.1f}% of {limit:,})"
 
 
 def estimate_tokens_by_verbosity(verbosity: str) -> int:

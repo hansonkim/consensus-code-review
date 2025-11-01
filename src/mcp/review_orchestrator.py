@@ -5,9 +5,16 @@ AI들이 MCP tools로 직접 탐색하며 서로 리뷰를 공유하며 합의�
 """
 
 import json
+import logging
 import time
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Literal
 from pathlib import Path
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Type alias for verbosity modes
+VerbosityMode = Literal["summary", "detailed", "full"]
 
 
 class ReviewSession:
@@ -338,7 +345,8 @@ class ReviewOrchestrator:
         target: str = "HEAD",
         initial_review: str = "",
         max_rounds: int = 3,
-        ais: Optional[str] = None
+        ais: Optional[str] = None,
+        verbosity: VerbosityMode = "summary"
     ) -> Dict:
         """🔍 작성된 리뷰를 다른 AI들에게 검토 요청
 
@@ -455,7 +463,8 @@ class ReviewOrchestrator:
         base: str,
         target: str = "HEAD",
         max_rounds: int = 5,
-        ais: Optional[str] = None
+        ais: Optional[str] = None,
+        verbosity: VerbosityMode = "summary"
     ) -> Dict:
         """🚀 Claude Code가 초기 리뷰 작성 후 다른 AI 검토
 
@@ -522,14 +531,14 @@ class ReviewOrchestrator:
             {
                 "name": "audit_code_review",
                 "description": "🔍 작성된 리뷰를 다른 AI들에게 검토 요청 | 사용자가 이미 작성한 코드 리뷰를 다른 AI CLI들(GPT-4, Gemini)에게 검토 요청합니다. Claude Code의 초기 리뷰 작성 단계는 건너뛰고 바로 검증 단계로 진행합니다.",
-                "parameters": "base: str, target: str = 'HEAD', initial_review: str, max_rounds: int = 3, ais: str = None",
-                "example": 'audit_code_review(base="develop", initial_review="# My Review\\n...", max_rounds=3)'
+                "parameters": "base: str, target: str = 'HEAD', initial_review: str, max_rounds: int = 3, ais: str = None, verbosity: str = 'summary'",
+                "example": 'audit_code_review(base="develop", initial_review="# My Review\\n...", max_rounds=3, verbosity="summary")'
             },
             {
                 "name": "run_code_review",
                 "description": "🚀 Claude Code가 초기 리뷰 작성 후 다른 AI 검토 | Claude Code에게 초기 리뷰 작성을 요청하고, 다른 AI들의 검토를 통해 반복적으로 개선합니다. 대화형 워크플로우로 진행됩니다.",
-                "parameters": "base: str, target: str = 'HEAD', max_rounds: int = 5, ais: str = None",
-                "example": 'run_code_review(base="develop", target="HEAD", max_rounds=5)'
+                "parameters": "base: str, target: str = 'HEAD', max_rounds: int = 5, ais: str = None, verbosity: str = 'summary'",
+                "example": 'run_code_review(base="develop", target="HEAD", max_rounds=5, verbosity="summary")'
             },
             {
                 "name": "create_review_session",
