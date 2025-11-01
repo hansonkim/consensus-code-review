@@ -8,7 +8,6 @@ import json
 import time
 from typing import Dict, List, Optional
 from pathlib import Path
-import tempfile
 
 
 class ReviewSession:
@@ -110,8 +109,9 @@ class ReviewOrchestrator:
 
     def __init__(self):
         self.sessions: Dict[str, ReviewSession] = {}
-        self.temp_dir = Path(tempfile.gettempdir()) / "ai_code_review_sessions"
-        self.temp_dir.mkdir(exist_ok=True)
+        # MCP 서버 호출한 디렉토리에 reviews 폴더 생성
+        self.reviews_dir = Path.cwd() / "reviews"
+        self.reviews_dir.mkdir(exist_ok=True)
 
     def create_review_session(self, base: str, target: str = "HEAD") -> str:
         """새 리뷰 세션 생성
@@ -316,7 +316,7 @@ class ReviewOrchestrator:
 
     def _save_session(self, session: ReviewSession):
         """세션을 파일에 저장 (디버깅/복구용)"""
-        session_file = self.temp_dir / f"{session.session_id}.json"
+        session_file = self.reviews_dir / f"{session.session_id}.json"
 
         session_data = {
             "session_id": session.session_id,
@@ -332,60 +332,256 @@ class ReviewOrchestrator:
         with open(session_file, 'w', encoding='utf-8') as f:
             json.dump(session_data, f, indent=2, ensure_ascii=False)
 
+    def audit_code_review(
+        self,
+        base: str,
+        target: str = "HEAD",
+        initial_review: str = "",
+        max_rounds: int = 3,
+        ais: Optional[str] = None
+    ) -> Dict:
+        """🔍 작성된 리뷰를 다른 AI들에게 검토 요청
+
+        사용자가 이미 작성한 코드 리뷰를 다른 AI CLI들에게 검토 요청합니다.
+        Claude Code의 초기 리뷰 작성 단계는 건너뜁니다.
+
+        워크플로우:
+        1. 사용자 제공 리뷰를 세션에 저장
+        2. 다른 AI들(GPT-4, Gemini)이 검토 (병렬)
+        3. 합의 확인 및 최종 보고서 생성
+
+        Args:
+            base: 기준 브랜치
+            target: 비교 대상 브랜치 (기본: HEAD)
+            initial_review: 사용자가 작성한 초기 리뷰 (필수)
+            max_rounds: 최대 검토 라운드 수 (기본: 3)
+            ais: 사용할 AI 지정 (쉼표 구분, None=자동 감지)
+
+        Returns:
+            {
+                "status": "success",
+                "session_id": "...",
+                "peer_reviews": [...],
+                "consensus_reached": true/false,
+                "final_report_file": "..."
+            }
+        """
+        if not initial_review or not initial_review.strip():
+            return {
+                "status": "error",
+                "error": "initial_review is required for audit_code_review"
+            }
+
+        import sys
+        from ai_cli_tools import AIClient, ModelManager, CacheManager
+        from ai_cli_tools.constants import CACHE_FILE
+        from src.data_curator import DataCurator
+
+        # 1. AI 감지 (CLAUDE 제외)
+        cache_manager = CacheManager(CACHE_FILE)
+        model_manager = ModelManager(cache_manager)
+        model_manager.initialize_models()
+
+        available_ais = model_manager.get_available_models()
+
+        # CLAUDE 제외 (사용자가 이미 리뷰 작성)
+        reviewer_ais = {k: v for k, v in available_ais.items() if k != "claude"}
+
+        if not reviewer_ais:
+            return {
+                "status": "error",
+                "error": "No AI CLIs available for review. Need GPT-4 or Gemini.",
+                "available_ais": []
+            }
+
+        # 2. 세션 생성
+        session_id = self.create_review_session(base, target)
+
+        # 3. 데이터 큐레이션
+        curator = DataCurator()
+        curated_result = curator.curate_changes(base, target)
+        curated_data = curator.format_curated_data(curated_result)
+
+        # 4. 사용자 리뷰 저장
+        self.submit_review(session_id, "USER", initial_review)
+
+        # 5. 다른 AI들에게 검토 요청 (병렬)
+        ai_client = AIClient()
+        peer_reviews = []
+
+        for ai_name, ai_model in reviewer_ais.items():
+            try:
+                prompt = f"""다음 코드 리뷰를 검토하고 피드백을 제공해주세요:
+
+=== CODE CHANGES ===
+{curated_data}
+
+=== USER REVIEW ===
+{initial_review}
+
+=== YOUR TASK ===
+위 리뷰를 비판적으로 검토하고:
+1. 놓친 이슈가 있는지
+2. 잘못된 분석이 있는지
+3. 개선할 점이 있는지
+평가해주세요."""
+
+                response = ai_client.call_ai(prompt, ai_model)
+                self.submit_review(session_id, ai_name.upper(), response)
+                peer_reviews.append({
+                    "ai": ai_name,
+                    "review": response
+                })
+            except Exception as e:
+                peer_reviews.append({
+                    "ai": ai_name,
+                    "error": str(e)
+                })
+
+        # 6. 합의 확인
+        consensus_result = self.check_consensus(session_id)
+
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "initial_review_by": "USER",
+            "peer_reviews": peer_reviews,
+            "consensus_reached": consensus_result.get("consensus_reached", False),
+            "reviewer_ais": list(reviewer_ais.keys())
+        }
+
+    def run_code_review(
+        self,
+        base: str,
+        target: str = "HEAD",
+        max_rounds: int = 5,
+        ais: Optional[str] = None
+    ) -> Dict:
+        """🚀 Claude Code가 초기 리뷰 작성 후 다른 AI 검토
+
+        Claude Code에게 초기 리뷰 작성을 요청하고,
+        다른 AI들의 검토를 통해 반복적으로 개선합니다.
+
+        대화형 워크플로우:
+        1. 프롬프트 반환 → Claude Code가 초기 리뷰 작성
+        2. submit_review로 제출 필요
+        3. 다른 AI들(GPT-4, Gemini) 검토
+        4. Claude Code에게 수정 요청
+        5. 합의까지 반복
+
+        Args:
+            base: 기준 브랜치
+            target: 비교 대상 브랜치 (기본: HEAD)
+            max_rounds: 최대 라운드 수 (기본: 5)
+            ais: 사용할 AI 지정 (쉼표 구분, None=자동 감지)
+
+        Returns:
+            {
+                "status": "awaiting_initial_review",
+                "session_id": "...",
+                "prompt": "...",
+                "instruction": "Please write initial code review",
+                "next_tool": "submit_review"
+            }
+        """
+        import sys
+        from src.data_curator import DataCurator
+
+        # 1. 세션 생성
+        session_id = self.create_review_session(base, target)
+
+        # 2. 데이터 큐레이션
+        curator = DataCurator()
+        curated_result = curator.curate_changes(base, target)
+        curated_data = curator.format_curated_data(curated_result)
+
+        # 3. Claude Code에게 초기 리뷰 작성 프롬프트 반환
+        from src.mcp.minimal_prompt import generate_claude_initial_report_prompt
+
+        prompt = generate_claude_initial_report_prompt(
+            session_id=session_id,
+            curated_data=curated_data
+        )
+
+        return {
+            "status": "awaiting_initial_review",
+            "session_id": session_id,
+            "prompt": prompt,
+            "instruction": "Please write an initial code review based on the changes above. After writing, call submit_review tool.",
+            "next_tool": "submit_review",
+            "next_args": {
+                "session_id": session_id,
+                "ai_name": "CLAUDE",
+                "review": "<your review here>"
+            }
+        }
+
     def get_available_tools(self) -> List[Dict[str, str]]:
         """사용 가능한 도구 목록"""
         return [
             {
+                "name": "audit_code_review",
+                "description": "🔍 작성된 리뷰를 다른 AI들에게 검토 요청 | 사용자가 이미 작성한 코드 리뷰를 다른 AI CLI들(GPT-4, Gemini)에게 검토 요청합니다. Claude Code의 초기 리뷰 작성 단계는 건너뛰고 바로 검증 단계로 진행합니다.",
+                "parameters": "base: str, target: str = 'HEAD', initial_review: str, max_rounds: int = 3, ais: str = None",
+                "example": 'audit_code_review(base="develop", initial_review="# My Review\\n...", max_rounds=3)'
+            },
+            {
+                "name": "run_code_review",
+                "description": "🚀 Claude Code가 초기 리뷰 작성 후 다른 AI 검토 | Claude Code에게 초기 리뷰 작성을 요청하고, 다른 AI들의 검토를 통해 반복적으로 개선합니다. 대화형 워크플로우로 진행됩니다.",
+                "parameters": "base: str, target: str = 'HEAD', max_rounds: int = 5, ais: str = None",
+                "example": 'run_code_review(base="develop", target="HEAD", max_rounds=5)'
+            },
+            {
                 "name": "create_review_session",
-                "description": "새 코드 리뷰 세션 시작 (AI들 간 협업을 위한 세션 생성)",
+                "description": "🔧 [내부용] 수동 리뷰 세션 생성 | execute_full_review가 내부적으로 사용합니다. 직접 사용하지 마세요.",
                 "parameters": "base: str, target: str (기본: HEAD)",
                 "example": 'create_review_session("develop", "HEAD")'
             },
             {
                 "name": "submit_review",
-                "description": "내 리뷰 제출 (현재 라운드에 리뷰 제출)",
+                "description": "🔧 [내부용] 리뷰 제출 | execute_full_review가 내부적으로 사용합니다.",
                 "parameters": "session_id: str, ai_name: str, review: str",
                 "example": 'submit_review(session_id, "Claude", "# Review\\n...")'
             },
             {
                 "name": "get_other_reviews",
-                "description": "다른 AI들의 리뷰 읽기 (현재 라운드)",
+                "description": "🔧 [내부용] 다른 AI 리뷰 읽기 | execute_full_review가 내부적으로 사용합니다.",
                 "parameters": "session_id: str, ai_name: str",
                 "example": 'get_other_reviews(session_id, "Claude")'
             },
             {
                 "name": "check_consensus",
-                "description": "합의 상태 확인 (모든 AI가 제출했는지)",
+                "description": "🔧 [내부용] 합의 상태 확인 | execute_full_review가 내부적으로 사용합니다.",
                 "parameters": "session_id: str",
                 "example": "check_consensus(session_id)"
             },
             {
                 "name": "advance_round",
-                "description": "다음 라운드로 진행",
+                "description": "🔧 [내부용] 다음 라운드로 진행 | execute_full_review가 내부적으로 사용합니다.",
                 "parameters": "session_id: str",
                 "example": "advance_round(session_id)"
             },
             {
                 "name": "finalize_review",
-                "description": "최종 리뷰 확정",
+                "description": "🔧 [내부용] 최종 리뷰 확정 | execute_full_review가 내부적으로 사용합니다.",
                 "parameters": "session_id: str, final_review: str",
                 "example": 'finalize_review(session_id, "# Final Review\\n...")'
             },
             {
                 "name": "get_session_info",
-                "description": "세션 정보 조회",
+                "description": "🔧 [내부용] 세션 정보 조회 | execute_full_review가 내부적으로 사용합니다.",
                 "parameters": "session_id: str",
                 "example": "get_session_info(session_id)"
             },
             {
                 "name": "report_progress",
-                "description": "⭐ 실시간 진행 상황 보고 (리뷰 작성 중 사용자에게 진행 상황 알림)",
+                "description": "🔧 [내부용] 진행 상황 보고 | execute_full_review가 내부적으로 사용합니다.",
                 "parameters": "session_id: str, ai_name: str, message: str",
                 "example": 'report_progress(session_id, "Claude", "Analyzing security issues in auth.py...")'
             },
             {
                 "name": "get_progress",
-                "description": "진행 상황 조회 (특정 시간 이후의 progress 확인)",
+                "description": "🔧 [내부용] 진행 상황 조회 | execute_full_review가 내부적으로 사용합니다.",
                 "parameters": "session_id: str, since: float (기본: 0)",
                 "example": "get_progress(session_id, since=1730356789.0)"
             }

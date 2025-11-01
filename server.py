@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""MCP Server for AI Code Review
+"""MCP Server for Consensus Code Review
 
-Claude CLI와 통신하기 위한 stdio 기반 MCP 서버입니다.
+Claude Code와 통신하기 위한 stdio 기반 MCP 서버입니다.
+다른 AI CLI들과의 합의 기반 코드 리뷰를 제공합니다.
 """
 
 import sys
@@ -10,7 +11,7 @@ import traceback
 from pathlib import Path
 
 # 프로젝트 루트를 path에 추가
-project_root = Path(__file__).parent.parent.parent
+project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
 from src.mcp import MCPManager
@@ -112,8 +113,8 @@ class MCPServer:
                             "resources": {}
                         },
                         "serverInfo": {
-                            "name": "ai-code-review-mcp",
-                            "version": "1.0.0"
+                            "name": "consensus-code-review",
+                            "version": "2.0.0"
                         }
                     }
                 }

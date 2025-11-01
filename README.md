@@ -71,6 +71,27 @@ pip install -r requirements.txt
 
 ### 사용법
 
+#### 방법 1: MCP에서 직접 실행 (Claude Code) ⭐ **신규**
+
+```python
+# Claude Code MCP 환경에서
+use consensus-code-review mcp
+
+# Claude Code가 초기 리뷰 작성 후 다른 AI 검토
+run_code_review(base="develop", target="HEAD")
+
+# 최대 라운드 수 지정
+run_code_review(base="develop", max_rounds=5)
+
+# 이미 작성된 리뷰를 다른 AI에게 검토 요청
+audit_code_review(base="develop", initial_review="[your review here]")
+
+# 특정 AI만 사용
+audit_code_review(base="develop", initial_review="...", ais="gpt4,gemini")
+```
+
+#### 방법 2: CLI에서 실행 (기존)
+
 ```bash
 # Git diff 리뷰 (자동으로 모든 AI 감지)
 python review.py --base develop
@@ -155,50 +176,65 @@ Round 3: Review and Refine
 📄 최종 리포트: reviews/review_20251031_153045_final.md
 ```
 
-## 📋 MCP Tools (9개)
+## 📋 MCP Tools
 
-AI에게 제공되는 도구는 **Review session 관리만**:
+### 사용자용 도구 (2개)
 
-1. `create_review_session` - 리뷰 세션 생성
-2. `submit_review` - 리뷰 제출
-3. `get_other_reviews` - 다른 AI 리뷰 읽기
-4. `check_consensus` - 합의 상태 확인
-5. `advance_round` - 라운드 진행
-6. `finalize_review` - 최종 확정
-7. `get_session_info` - 세션 정보 조회
-8. `report_progress` - 실시간 진행 보고
-9. `get_progress` - 진행 상황 조회
+**대부분의 경우 이것만 사용하면 됩니다:**
+
+1. `run_code_review` - 🚀 **Claude Code가 초기 리뷰 작성 후 다른 AI 검토**
+   - AI CLI 자동 감지 (GPT-4, Gemini)
+   - Claude Code가 현재 컨텍스트에서 초기 리뷰 작성
+   - 다른 AI들이 검토 및 iterative refinement
+   - 최종 합의된 REPORT 자동 생성
+
+2. `audit_code_review` - 🔍 **이미 작성된 리뷰를 다른 AI에게 검토 요청**
+   - 사용자가 준비한 리뷰를 다른 AI들이 검토
+   - Claude Code 초기 리뷰 단계 건너뜀
+   - 빠른 peer validation
+
+### 내부용 도구 (9개)
+
+**run_code_review와 audit_code_review가 내부적으로 사용합니다. 직접 사용하지 마세요:**
+
+3. `create_review_session` - 🔧 [내부용] 리뷰 세션 생성
+4. `submit_review` - 🔧 [내부용] 리뷰 제출
+5. `get_other_reviews` - 🔧 [내부용] 다른 AI 리뷰 읽기
+6. `check_consensus` - 🔧 [내부용] 합의 상태 확인
+7. `advance_round` - 🔧 [내부용] 라운드 진행
+8. `finalize_review` - 🔧 [내부용] 최종 확정
+9. `get_session_info` - 🔧 [내부용] 세션 정보 조회
+10. `report_progress` - 🔧 [내부용] 진행 상황 보고
+11. `get_progress` - 🔧 [내부용] 진행 상황 조회
 
 **Git/Filesystem 도구는 제거됨** (Python이 내부 처리)
 
 ## 📚 문서
 
-- [**CLAUDE-Led 아키텍처**](docs/CLAUDE_LED_ARCHITECTURE.md) ⭐ **NEW**
+- [**Consensus Code Review MCP Tools**](docs/CONSENSUS_CODE_REVIEW_MCP_TOOLS.md) ⭐ **NEW**
+- [**CLAUDE-Led 아키텍처**](docs/CLAUDE_LED_ARCHITECTURE.md)
 - [Pure Task Delegation 아키텍처](docs/PURE_TASK_DELEGATION_ARCHITECTURE.md)
 - [CLI 사용법](docs/CLI_USAGE.md)
 - [MCP 설정](docs/MCP_SETUP.md)
 - [빠른 참조](docs/QUICK_REFERENCE.md)
 - [테스트 가이드](docs/TESTING_GUIDE.md)
-- [Consensus 구현](docs/CONSENSUS_IMPLEMENTATION.md)
 - [실시간 Progress](docs/REALTIME_PROGRESS.md)
 - [트러블슈팅](docs/TROUBLESHOOTING_LARGE_REVIEWS.md)
 
 ## 🏗️ 프로젝트 구조
 
 ```
+server.py                    ← MCP 서버 (stdio)
 src/
-├── phase1_reviewer_mcp_orchestrated.py  ← CLAUDE-Led 리뷰어
-├── data_curator.py                       ← Python 큐레이터
-└── mcp/                                  ← MCP 서버 모듈
-    ├── review_orchestrator.py            ← 리뷰 세션 관리
-    ├── minimal_prompt.py                 ← 4개 프롬프트
-    │                                       • CLAUDE 초기 REPORT
-    │                                       • 검토자 REPORT 리뷰
-    │                                       • CLAUDE 수정 판단
-    │                                       • 최종 합의 확인
-    ├── consensus_calculator.py           ← Consensus 계산 (예비)
-    ├── manager.py                        ← MCP 매니저
-    └── server.py                         ← MCP 서버
+├── data_curator.py          ← Python 큐레이터 (Git diff, 토큰 제한)
+└── mcp/                     ← MCP 서버 모듈
+    ├── review_orchestrator.py  ← 리뷰 도구 제공자 (11개 도구)
+    ├── minimal_prompt.py       ← 4개 프롬프트 생성기
+    │                             • CLAUDE 초기 REPORT
+    │                             • 검토자 REPORT 리뷰
+    │                             • CLAUDE 수정 판단
+    │                             • 최종 합의 확인
+    └── manager.py              ← MCP 매니저
 ```
 
 ## 🧪 테스트
@@ -209,9 +245,6 @@ pytest tests/ -v
 
 # MCP 서버 테스트
 pytest tests/test_mcp_servers.py -v
-
-# Consensus 테스트
-pytest tests/test_consensus_calculator.py -v
 ```
 
 ## 📊 아키텍처 비교
