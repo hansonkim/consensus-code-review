@@ -16,7 +16,7 @@ from .token_counter import (
 
 # Other utilities
 from .artifact_writer import save_review_artifacts
-from .summary_generator import write_summary_md, classify_issues, extract_key_findings
+from .summary_generator import write_summary_md, classify_issues
 
 __all__ = [
     "count_tokens",

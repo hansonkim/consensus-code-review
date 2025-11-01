@@ -13,7 +13,7 @@ MCP_MAX_TOKENS = 25000
 VERBOSITY_LIMITS = {
     "summary": 5000,
     "detailed": 15000,
-    "full": 50000
+    "full": 25000  # Equal to MCP_MAX_TOKENS (full response)
 }
 
 
@@ -50,7 +50,7 @@ def truncate_to_tokens(
     max_tokens: int,
     model: str = "gpt-4",
     suffix: str = "\n\n...(truncated)"
-) -> str:
+) -> tuple[str, bool]:
     """Truncate text to maximum token count
 
     Args:
@@ -60,7 +60,7 @@ def truncate_to_tokens(
         suffix: Suffix to add when truncating
 
     Returns:
-        Truncated text with suffix if needed
+        Tuple of (truncated_text, was_truncated)
     """
     try:
         import tiktoken
@@ -73,23 +73,23 @@ def truncate_to_tokens(
             # Fallback: character-based truncation
             max_chars = max_tokens * 4
             if len(text) <= max_chars:
-                return text
-            return text[:max_chars] + suffix
+                return (text, False)
+            return (text[:max_chars] + suffix, True)
 
     tokens = encoding.encode(text)
 
     if len(tokens) <= max_tokens:
-        return text
+        return (text, False)
 
     # Reserve tokens for suffix
     suffix_tokens = encoding.encode(suffix)
     available_tokens = max_tokens - len(suffix_tokens)
 
     if available_tokens <= 0:
-        return suffix
+        return (suffix, True)
 
     truncated_tokens = tokens[:available_tokens]
-    return encoding.decode(truncated_tokens) + suffix
+    return (encoding.decode(truncated_tokens) + suffix, True)
 
 
 def validate_response_size(response: dict[str, Any], max_tokens: int = 25000) -> None:
@@ -120,16 +120,21 @@ def get_token_stats(text: str, model: str = "gpt-4") -> dict:
         model: Model name for encoding
 
     Returns:
-        Dictionary with token count, character count, and ratio
+        Dictionary with token count, character count, ratio, max_allowed, remaining, and percent_used
     """
     token_count = count_tokens(text, model)
     char_count = len(text)
     ratio = char_count / token_count if token_count > 0 else 0
+    remaining = MCP_MAX_TOKENS - token_count
+    percent_used = (token_count / MCP_MAX_TOKENS * 100) if MCP_MAX_TOKENS > 0 else 0
 
     return {
         "tokens": token_count,
         "characters": char_count,
-        "chars_per_token": ratio
+        "ratio": ratio,
+        "max_allowed": MCP_MAX_TOKENS,
+        "remaining": remaining,
+        "percent_used": percent_used
     }
 
 
@@ -141,30 +146,42 @@ def get_verbosity_limit(verbosity: str) -> int:
 
     Returns:
         Token limit for the mode
+
+    Raises:
+        ValueError: If verbosity mode is invalid
     """
-    limits = {
-        "summary": 5000,
-        "detailed": 15000,
-        "full": 50000
-    }
-    return limits.get(verbosity, 5000)
+    if verbosity not in VERBOSITY_LIMITS:
+        raise ValueError(
+            f"Invalid verbosity mode: '{verbosity}'. "
+            f"Must be one of: {', '.join(VERBOSITY_LIMITS.keys())}"
+        )
+    return VERBOSITY_LIMITS[verbosity]
 
 
-def format_token_warning(token_count: int, limit: int) -> str:
+def format_token_warning(token_count: int, limit: int, mode: str) -> str:
     """Format warning message about token usage
 
     Args:
         token_count: Current token count
         limit: Token limit
+        mode: Verbosity mode (summary/detailed/full)
 
     Returns:
         Warning message string
     """
+    percentage = (token_count / limit) * 100 if limit > 0 else 0
+    remaining = limit - token_count
+
     if token_count > limit:
-        return f"⚠️  Response exceeds limit: {token_count:,} tokens (limit: {limit:,})"
+        return (
+            f"⚠️  EXCEEDED limit for '{mode}' mode: {token_count:,} tokens "
+            f"(limit: {limit:,}, {percentage:.1f}%) - will be truncated"
+        )
     else:
-        percentage = (token_count / limit) * 100
-        return f"✅ Within limit: {token_count:,} tokens ({percentage:.1f}% of {limit:,})"
+        return (
+            f"✅ Within '{mode}' limit: {token_count:,} tokens "
+            f"({percentage:.1f}% of {limit:,}) - Remaining: {remaining:,} tokens"
+        )
 
 
 def estimate_tokens_by_verbosity(verbosity: str) -> int:

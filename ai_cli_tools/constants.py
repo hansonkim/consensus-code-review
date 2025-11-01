@@ -21,7 +21,7 @@ ALL_AI_MODELS: Dict[str, AIModel] = {
     ),
     "gemini": AIModel(
         name="Gemini",
-        command=["gemini", "-p"],
+        command=["gemini"],  # -p flag removed (deprecated, use stdin instead)
         display_name="Gemini (Google)",
         test_command=["gemini", "--version"]
     ),
