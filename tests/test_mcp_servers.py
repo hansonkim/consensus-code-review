@@ -26,14 +26,17 @@ class TestReviewOrchestrator(unittest.TestCase):
         """사용 가능한 도구 목록 테스트"""
         tools = self.orchestrator.get_available_tools()
         self.assertIsInstance(tools, list)
-        self.assertEqual(len(tools), 9)  # Review 도구만 9개
+        self.assertEqual(len(tools), 11)  # Review 도구 11개 (audit_code_review, run_code_review 포함)
 
         # 핵심 도구들 확인
         tool_names = [t["name"] for t in tools]
+        self.assertIn("audit_code_review", tool_names)
+        self.assertIn("run_code_review", tool_names)
         self.assertIn("create_review_session", tool_names)
         self.assertIn("submit_review", tool_names)
         self.assertIn("get_other_reviews", tool_names)
         self.assertIn("report_progress", tool_names)
+        self.assertIn("get_progress", tool_names)
 
         # Git/Filesystem 도구는 없어야 함
         self.assertNotIn("get_diff", tool_names)
@@ -91,8 +94,8 @@ class TestMCPManager(unittest.TestCase):
         self.assertNotIn("filesystem", tools)
         self.assertNotIn("git", tools)
 
-        # Review 도구 9개 확인
-        self.assertEqual(len(tools["review"]), 9)
+        # Review 도구 11개 확인 (audit_code_review, run_code_review 포함)
+        self.assertEqual(len(tools["review"]), 11)
 
     def test_generate_tool_description(self):
         """도구 설명 문서 생성 테스트"""
