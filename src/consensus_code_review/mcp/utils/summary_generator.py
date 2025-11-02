@@ -1,14 +1,15 @@
 """Summary generation utilities for code review reports"""
 
+from __future__ import annotations
+
 from pathlib import Path
-from typing import Any, Dict, List
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ..review_orchestrator import ReviewSession
 
 
-def write_summary_md(
-    session: 'ReviewSession',
-    base_dir: str,
-    review_type: str
-) -> str:
+def write_summary_md(session: ReviewSession, base_dir: str, review_type: str) -> str:
     """Write summary markdown file
 
     Args:
@@ -21,7 +22,7 @@ def write_summary_md(
     """
     summary_path = Path(base_dir) / "summary.md"
 
-    content = f"# Code Review Summary\n\n"
+    content = "# Code Review Summary\n\n"
     content += f"**Session**: {session.session_id}\n"
     content += f"**Branch**: {session.base_branch}...{session.target_branch}\n"
     content += f"**Type**: {review_type}_code_review\n\n"
@@ -33,10 +34,7 @@ def write_summary_md(
     return str(summary_path)
 
 
-def write_full_transcript(
-    session: 'ReviewSession',
-    base_dir: str
-) -> str:
+def write_full_transcript(session: ReviewSession, base_dir: str) -> str:
     """Write full conversation transcript
 
     Args:
@@ -48,7 +46,7 @@ def write_full_transcript(
     """
     transcript_path = Path(base_dir) / "full-transcript.md"
 
-    content = f"# Full Review Transcript\n\n"
+    content = "# Full Review Transcript\n\n"
     content += f"**Session**: {session.session_id}\n"
     content += f"**Branch**: {session.base_branch}...{session.target_branch}\n\n"
 
@@ -66,7 +64,7 @@ def write_full_transcript(
     return str(transcript_path)
 
 
-def classify_issues(review_text: str) -> Dict[str, List[str]]:
+def classify_issues(review_text: str) -> dict[str, list[str]]:
     """Classify issues by severity
 
     Args:
@@ -75,11 +73,7 @@ def classify_issues(review_text: str) -> Dict[str, List[str]]:
     Returns:
         Dictionary with classified issues
     """
-    return {
-        "critical": [],
-        "major": [],
-        "minor": []
-    }
+    return {"critical": [], "major": [], "minor": []}
 
 
 def count_tokens(text: str) -> int:

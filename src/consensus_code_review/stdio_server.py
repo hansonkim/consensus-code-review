@@ -13,7 +13,7 @@ import json
 import sys
 import traceback
 from pathlib import Path
-from typing import IO, Optional, Union
+from typing import IO
 
 from .mcp import MCPManager
 
@@ -23,14 +23,14 @@ DEFAULT_LOG_PATH = Path("logs") / "mcp_server.log"
 class MCPServer:
     """MCP 프로토콜 서버"""
 
-    def __init__(self, log_path: Union[str, Path, None] = None):
+    def __init__(self, log_path: str | Path | None = None):
         """초기화"""
         self.manager = MCPManager()
 
         resolved_log_path = Path(log_path) if log_path else DEFAULT_LOG_PATH
         resolved_log_path.parent.mkdir(parents=True, exist_ok=True)
 
-        self.log_file: Optional[IO[str]] = resolved_log_path.open("a", encoding="utf-8")
+        self.log_file: IO[str] | None = resolved_log_path.open("a", encoding="utf-8")
         self.log("=" * 70)
         self.log("MCP Server initialized")
 
@@ -53,7 +53,9 @@ class MCPServer:
         params = request.get("params", {})
         request_id = request.get("id")
 
-        self.log(f"Request: method={method}, id={request_id}, params={list(params.keys()) if params else 'none'}")
+        self.log(
+            f"Request: method={method}, id={request_id}, params={list(params.keys()) if params else 'none'}"
+        )
 
         try:
             # tools/list - 사용 가능한 도구 목록
@@ -63,21 +65,19 @@ class MCPServer:
 
                 for server_name, server_tools in all_tools.items():
                     for tool in server_tools:
-                        tools.append({
-                            "name": f"{server_name}_{tool['name']}",
-                            "description": tool["description"],
-                            "inputSchema": {
-                                "type": "object",
-                                "properties": self._parse_parameters(tool["parameters"]),
-                                "required": []
+                        tools.append(
+                            {
+                                "name": f"{server_name}_{tool['name']}",
+                                "description": tool["description"],
+                                "inputSchema": {
+                                    "type": "object",
+                                    "properties": self._parse_parameters(tool["parameters"]),
+                                    "required": [],
+                                },
                             }
-                        })
+                        )
 
-                return {
-                    "jsonrpc": "2.0",
-                    "id": request_id,
-                    "result": {"tools": tools}
-                }
+                return {"jsonrpc": "2.0", "id": request_id, "result": {"tools": tools}}
 
             # tools/call - 도구 실행
             elif method == "tools/call":
@@ -96,14 +96,7 @@ class MCPServer:
                 return {
                     "jsonrpc": "2.0",
                     "id": request_id,
-                    "result": {
-                        "content": [
-                            {
-                                "type": "text",
-                                "text": str(result)
-                            }
-                        ]
-                    }
+                    "result": {"content": [{"type": "text", "text": str(result)}]},
                 }
 
             # initialize - 서버 초기화
@@ -113,15 +106,9 @@ class MCPServer:
                     "id": request_id,
                     "result": {
                         "protocolVersion": "2024-11-05",
-                        "capabilities": {
-                            "tools": {},
-                            "resources": {}
-                        },
-                        "serverInfo": {
-                            "name": "consensus-code-review",
-                            "version": "2.0.0"
-                        }
-                    }
+                        "capabilities": {"tools": {}, "resources": {}},
+                        "serverInfo": {"name": "consensus-code-review", "version": "2.0.0"},
+                    },
                 }
 
             # resources/list - 리소스 목록 (파일 경로들)
@@ -135,10 +122,10 @@ class MCPServer:
                                 "uri": "file:///",
                                 "name": "Project Files",
                                 "description": "Access project files through filesystem MCP tools",
-                                "mimeType": "text/plain"
+                                "mimeType": "text/plain",
                             }
                         ]
-                    }
+                    },
                 }
 
             # resources/read - 리소스 읽기
@@ -153,13 +140,9 @@ class MCPServer:
                             "id": request_id,
                             "result": {
                                 "contents": [
-                                    {
-                                        "uri": uri,
-                                        "mimeType": "text/plain",
-                                        "text": content
-                                    }
+                                    {"uri": uri, "mimeType": "text/plain", "text": content}
                                 ]
-                            }
+                            },
                         }
                     except Exception as e:
                         return self._error_response(request_id, f"Failed to read resource: {e}")
@@ -219,14 +202,7 @@ class MCPServer:
 
     def _error_response(self, request_id, message: str) -> dict:
         """에러 응답 생성"""
-        return {
-            "jsonrpc": "2.0",
-            "id": request_id,
-            "error": {
-                "code": -32603,
-                "message": message
-            }
-        }
+        return {"jsonrpc": "2.0", "id": request_id, "error": {"code": -32603, "message": message}}
 
     def run(self):
         """서버 실행 (stdio 루프)"""
@@ -260,7 +236,7 @@ class MCPServer:
                 self.log_file.close()
 
 
-def run_stdio_server(log_path: Union[str, Path, None] = None) -> None:
+def run_stdio_server(log_path: str | Path | None = None) -> None:
     """Convenience wrapper used by the CLI entry point."""
     server = MCPServer(log_path=log_path)
     server.run()

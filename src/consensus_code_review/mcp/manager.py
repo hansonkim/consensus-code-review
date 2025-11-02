@@ -8,7 +8,8 @@ Pure Task Delegation Architecture:
 - AI에게는 review session 관리 도구만 제공
 """
 
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
 from .review_orchestrator import ReviewOrchestrator
 
 
@@ -28,9 +29,7 @@ class MCPManager:
         """
         # Review session 관리 도구만 제공
         self.orchestrator = ReviewOrchestrator()
-        self.servers = {
-            "review": self.orchestrator
-        }
+        self.servers = {"review": self.orchestrator}
 
     def get_all_tools(self) -> Dict[str, List[Dict[str, str]]]:
         """모든 MCP 도구 목록 조회
@@ -40,7 +39,7 @@ class MCPManager:
         """
         tools = {}
         for name, server in self.servers.items():
-            if hasattr(server, 'get_available_tools'):
+            if hasattr(server, "get_available_tools"):
                 tools[name] = server.get_available_tools()
         return tools
 

@@ -5,8 +5,8 @@ This file provides common fixtures and configuration for all tests.
 """
 
 import asyncio
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 from typing import Generator
 
@@ -76,7 +76,7 @@ Line 78: Missing input validation
 API endpoint accepts unvalidated user input
 
 **Recommendation**: Implement validation middleware
-"""
+""",
     }
 
 
@@ -94,19 +94,19 @@ def mock_session_data() -> dict:
             "CLAUDE": {
                 1: {"content": "Initial review...", "timestamp": 1000.0},
                 2: {"content": "Revised review...", "timestamp": 2000.0},
-                3: {"content": "Final review...", "timestamp": 3000.0}
+                3: {"content": "Final review...", "timestamp": 3000.0},
             },
             "GPT4": {
                 1: {"content": "GPT-4 feedback...", "timestamp": 1100.0},
                 2: {"content": "GPT-4 revised...", "timestamp": 2100.0},
-                3: {"content": "GPT-4 final...", "timestamp": 3100.0}
+                3: {"content": "GPT-4 final...", "timestamp": 3100.0},
             },
             "GEMINI": {
                 1: {"content": "Gemini feedback...", "timestamp": 1200.0},
                 2: {"content": "Gemini revised...", "timestamp": 2200.0},
-                3: {"content": "Gemini final...", "timestamp": 3200.0}
-            }
-        }
+                3: {"content": "Gemini final...", "timestamp": 3200.0},
+            },
+        },
     }
 
 
@@ -132,7 +132,7 @@ def create_artifact_structure(base_dir: Path, review_type: str = "run") -> dict:
         "consensus_log": base_dir / "consensus.json",
         "statistics": base_dir / "statistics.json",
         "review_type": base_dir / "review-type.txt",
-        "rounds_dir": base_dir / "rounds"
+        "rounds_dir": base_dir / "rounds",
     }
 
     # Write basic content

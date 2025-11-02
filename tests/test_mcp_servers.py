@@ -4,7 +4,9 @@ Pure Task Delegation Architecture:
 - Git/Filesystem MCP 서버는 제거됨 (Python이 내부 처리)
 - Review Orchestrator만 테스트
 """
+
 import unittest
+
 from consensus_code_review.mcp.manager import MCPManager
 from consensus_code_review.mcp.review_orchestrator import ReviewOrchestrator
 
@@ -65,11 +67,7 @@ class TestReviewOrchestrator(unittest.TestCase):
         session_id = self.orchestrator.create_review_session("main", "HEAD")
 
         # Progress 보고
-        result = self.orchestrator.report_progress(
-            session_id,
-            "TestAI",
-            "Analyzing code..."
-        )
+        result = self.orchestrator.report_progress(session_id, "TestAI", "Analyzing code...")
         self.assertEqual(result["status"], "progress_recorded")
 
         # Progress 조회

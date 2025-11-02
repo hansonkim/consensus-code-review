@@ -29,11 +29,11 @@ def extract_summary(session: "ReviewSession") -> ReviewSummary:
     issues = classify_issues(final_review)
 
     # Extract key findings (simple implementation)
-    lines = final_review.split('\n')
+    lines = final_review.split("\n")
     key_findings_list = [
         line.strip()
         for line in lines
-        if line.strip().startswith(('- ', '* ', '1.', '2.', '3.', '###'))
+        if line.strip().startswith(("- ", "* ", "1.", "2.", "3.", "###"))
     ][:10]  # Limit to 10 findings
 
     return ReviewSummary(
@@ -44,7 +44,7 @@ def extract_summary(session: "ReviewSession") -> ReviewSummary:
         suggestions=len(issues.get("suggestions", [])),
         key_findings=key_findings_list,
         files_reviewed=0,  # TODO: Extract from curated data
-        total_changes=0     # TODO: Extract from curated data
+        total_changes=0,  # TODO: Extract from curated data
     )
 
 
@@ -82,14 +82,11 @@ def extract_consensus(session: "ReviewSession") -> ConsensusResult:
         result=result,
         confidence=confidence,
         participating_ais=participating_ais,
-        rounds_completed=session.current_round
+        rounds_completed=session.current_round,
     )
 
 
-def extract_final_review(
-    session: "ReviewSession",
-    max_tokens: int = 5000
-) -> str:
+def extract_final_review(session: "ReviewSession", max_tokens: int = 5000) -> str:
     """Extract final review text with token limit
 
     Args:
@@ -116,10 +113,7 @@ def extract_final_review(
     return truncated_text
 
 
-def create_review_response(
-    session: "ReviewSession",
-    verbosity: str = "summary"
-) -> ReviewResponse:
+def create_review_response(session: "ReviewSession", verbosity: str = "summary") -> ReviewResponse:
     """Create hybrid review response from session
 
     This function is used by BOTH review_run_code_review and
@@ -158,5 +152,5 @@ def create_review_response(
         consensus=consensus,
         summary=summary,
         final_review_text=final_review_text,
-        artifacts=artifacts
+        artifacts=artifacts,
     )

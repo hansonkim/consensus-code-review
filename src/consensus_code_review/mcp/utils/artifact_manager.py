@@ -6,17 +6,14 @@ and summary/transcript generation.
 """
 
 from pathlib import Path
-from typing import Dict, Any
+from typing import Any, Dict
 
 from .artifact_writer import save_review_artifacts
-from .summary_generator import write_summary_md, write_full_transcript
+from .summary_generator import write_full_transcript, write_summary_md
 
 
 async def generate_complete_artifacts(
-    review_data: Dict[str, Any],
-    target: str,
-    base: str = "main",
-    base_dir: str = "docs/reviews"
+    review_data: Dict[str, Any], target: str, base: str = "main", base_dir: str = "docs/reviews"
 ) -> Dict[str, str]:
     """
     Generate complete set of review artifacts.
@@ -73,26 +70,16 @@ async def generate_complete_artifacts(
     """
     # Step 1: Save artifact files (creates directory structure)
     review_dir_path = await save_review_artifacts(
-        review_data=review_data,
-        target=target,
-        base_dir=base_dir
+        review_data=review_data, target=target, base_dir=base_dir
     )
 
     review_dir = Path(review_dir_path)
 
     # Step 2: Generate summary.md
-    await write_summary_md(
-        review_dir=review_dir,
-        review_data=review_data,
-        target=target,
-        base=base
-    )
+    await write_summary_md(review_dir=review_dir, review_data=review_data, target=target, base=base)
 
     # Step 3: Generate full-transcript.md
-    await write_full_transcript(
-        review_dir=review_dir,
-        review_data=review_data
-    )
+    await write_full_transcript(review_dir=review_dir, review_data=review_data)
 
     # Build result paths
     result = {
@@ -130,6 +117,7 @@ async def load_review_artifacts(review_dir: str) -> Dict[str, Any]:
         ValueError: If review directory is invalid
     """
     import json
+
     import aiofiles
 
     review_path = Path(review_dir)
@@ -145,19 +133,19 @@ async def load_review_artifacts(review_dir: str) -> Dict[str, Any]:
     # Read review type
     review_type_file = review_path / "review-type.txt"
     if review_type_file.exists():
-        async with aiofiles.open(review_type_file, "r", encoding="utf-8") as f:
+        async with aiofiles.open(review_type_file, encoding="utf-8") as f:
             result["review_type"] = (await f.read()).strip()
 
     # Read consensus
     consensus_file = review_path / "consensus.json"
     if consensus_file.exists():
-        async with aiofiles.open(consensus_file, "r", encoding="utf-8") as f:
+        async with aiofiles.open(consensus_file, encoding="utf-8") as f:
             result["consensus"] = json.loads(await f.read())
 
     # Read initial review (audit only)
     initial_review_file = review_path / "initial-review.md"
     if initial_review_file.exists():
-        async with aiofiles.open(initial_review_file, "r", encoding="utf-8") as f:
+        async with aiofiles.open(initial_review_file, encoding="utf-8") as f:
             content = await f.read()
             # Strip header
             result["initial_review"] = content.replace("# Initial Review (User-Provided)\n\n", "")
@@ -167,13 +155,10 @@ async def load_review_artifacts(review_dir: str) -> Dict[str, Any]:
     if rounds_dir.exists() and rounds_dir.is_dir():
         rounds = []
         for round_file in sorted(rounds_dir.glob("round-*.md")):
-            async with aiofiles.open(round_file, "r", encoding="utf-8") as f:
+            async with aiofiles.open(round_file, encoding="utf-8") as f:
                 content = await f.read()
                 # Parse round file (simplified)
-                rounds.append({
-                    "file": round_file.name,
-                    "content": content
-                })
+                rounds.append({"file": round_file.name, "content": content})
         result["rounds"] = rounds
 
     return result

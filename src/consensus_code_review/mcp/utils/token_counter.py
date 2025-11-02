@@ -13,7 +13,7 @@ MCP_MAX_TOKENS = 25000
 VERBOSITY_LIMITS = {
     "summary": 5000,
     "detailed": 15000,
-    "full": 25000  # Equal to MCP_MAX_TOKENS (full response)
+    "full": 25000,  # Equal to MCP_MAX_TOKENS (full response)
 }
 
 
@@ -29,6 +29,7 @@ def count_tokens(text: str, model: str = "gpt-4") -> int:
     """
     try:
         import tiktoken
+
         encoding = tiktoken.encoding_for_model(model)
         return len(encoding.encode(text))
     except ImportError:
@@ -38,18 +39,16 @@ def count_tokens(text: str, model: str = "gpt-4") -> int:
         # If model not found, use cl100k_base (GPT-4 default)
         try:
             import tiktoken
+
             encoding = tiktoken.get_encoding("cl100k_base")
             return len(encoding.encode(text))
-        except:
+        except Exception:
             # Ultimate fallback
             return len(text) // 4
 
 
 def truncate_to_tokens(
-    text: str,
-    max_tokens: int,
-    model: str = "gpt-4",
-    suffix: str = "\n\n...(truncated)"
+    text: str, max_tokens: int, model: str = "gpt-4", suffix: str = "\n\n...(truncated)"
 ) -> tuple[str, bool]:
     """Truncate text to maximum token count
 
@@ -64,10 +63,12 @@ def truncate_to_tokens(
     """
     try:
         import tiktoken
+
         encoding = tiktoken.encoding_for_model(model)
-    except:
+    except Exception:
         try:
             import tiktoken
+
             encoding = tiktoken.get_encoding("cl100k_base")
         except ImportError:
             # Fallback: character-based truncation
@@ -134,7 +135,7 @@ def get_token_stats(text: str, model: str = "gpt-4") -> dict:
         "ratio": ratio,
         "max_allowed": MCP_MAX_TOKENS,
         "remaining": remaining,
-        "percent_used": percent_used
+        "percent_used": percent_used,
     }
 
 
@@ -193,9 +194,5 @@ def estimate_tokens_by_verbosity(verbosity: str) -> int:
     Returns:
         Recommended max tokens for verbosity level
     """
-    levels = {
-        "summary": 5000,
-        "detailed": 15000,
-        "full": 50000
-    }
+    levels = {"summary": 5000, "detailed": 15000, "full": 50000}
     return levels.get(verbosity, 5000)

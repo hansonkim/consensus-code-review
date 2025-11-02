@@ -10,10 +10,7 @@ CLAUDE-Led Architecture:
 """
 
 
-def generate_claude_initial_report_prompt(
-    session_id: str,
-    curated_data: str
-) -> str:
+def generate_claude_initial_report_prompt(session_id: str, curated_data: str) -> str:
     """CLAUDE 초기 REPORT 작성 프롬프트 (Round 1)
 
     Python이 큐레이션한 변경사항을 분석하여
@@ -220,10 +217,7 @@ Focus on:
 
 
 def generate_reviewer_critique_prompt(
-    session_id: str,
-    ai_name: str,
-    claude_report: str,
-    curated_data: str
+    session_id: str, ai_name: str, claude_report: str, curated_data: str
 ) -> str:
     """다른 AI들이 CLAUDE REPORT를 검토하는 프롬프트
 
@@ -406,10 +400,7 @@ Just write your critique in markdown format as your response. Python will automa
 
 
 def generate_claude_refinement_prompt(
-    session_id: str,
-    current_report: str,
-    reviews: list,
-    round_num: int
+    session_id: str, current_report: str, reviews: list, round_num: int
 ) -> str:
     """CLAUDE가 검토를 반영하여 REPORT 수정 판단 프롬프트
 
@@ -422,10 +413,9 @@ def generate_claude_refinement_prompt(
     Returns:
         프롬프트 문자열
     """
-    reviews_text = "\n\n---\n\n".join([
-        f"## Review by {review['ai_name']}\n\n{review['review']}"
-        for review in reviews
-    ])
+    reviews_text = "\n\n---\n\n".join(
+        [f"## Review by {review['ai_name']}\n\n{review['review']}" for review in reviews]
+    )
 
     return f"""# Code Review Task - Round {round_num}: Refine Your Report
 
@@ -523,7 +513,7 @@ If feedback reveals issues that need addressing:
 ## Changes Being Made
 
 ### 1. [Change Description]
-**Based on**: {ai_name}'s feedback
+**Based on**: [AI name]'s feedback
 **What's changing**: ...
 **Why**: ...
 
@@ -588,11 +578,7 @@ Begin evaluating the feedback and making your decision now!
 """
 
 
-def generate_consensus_check_prompt(
-    session_id: str,
-    ai_name: str,
-    claude_final_report: str
-) -> str:
+def generate_consensus_check_prompt(session_id: str, ai_name: str, claude_final_report: str) -> str:
     """다른 AI들이 CLAUDE의 최종 REPORT에 동의하는지 확인
 
     Args:

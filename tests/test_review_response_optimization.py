@@ -10,10 +10,11 @@ import os
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Dict, Any
-from unittest.mock import Mock, patch, AsyncMock
+from typing import Any, Dict
+from unittest.mock import Mock
 
 import pytest
+
 
 # Token counter mock (will use tiktoken in actual implementation)
 class MockTokenCounter:
@@ -39,6 +40,7 @@ class MockTokenCounter:
 # Type definitions based on requirements
 class ConsensusResult:
     """Consensus result structure"""
+
     result: str  # "APPROVED" | "APPROVE_WITH_CHANGES" | "REJECTED" | "NO_CONSENSUS"
     confidence: float  # 0.0 ~ 1.0
     participating_ais: list
@@ -47,6 +49,7 @@ class ConsensusResult:
 
 class ReviewSummary:
     """Review summary structure"""
+
     critical_issues: int
     high_priority: int
     medium_priority: int
@@ -59,6 +62,7 @@ class ReviewSummary:
 
 class ArtifactPaths:
     """Artifact file paths"""
+
     summary_file: str
     full_transcript: str
     rounds_dir: str
@@ -67,6 +71,7 @@ class ArtifactPaths:
 
 class ReviewResponse:
     """Complete review response structure"""
+
     session_id: str
     status: str  # "COMPLETED" | "IN_PROGRESS" | "FAILED"
     consensus: Dict[str, Any]
@@ -114,7 +119,7 @@ def mock_review_session():
             1: {"content": "Gemini feedback round 1...", "timestamp": 1200.0},
             2: {"content": "Gemini feedback round 2...", "timestamp": 2200.0},
             3: {"content": "Gemini final feedback...", "timestamp": 3200.0},
-        }
+        },
     }
 
     session.final_review = """
@@ -163,8 +168,11 @@ async def test_run_code_review_summary_response(mock_orchestrator, temp_reviews_
     Test 1: Verify run_code_review summary mode returns < 5000 tokens
     and creates all required artifacts
     """
+
     # Mock the review_run_code_review function
-    async def mock_run_code_review(base, target, max_rounds=3, ais="gpt4,gemini", verbosity="summary"):
+    async def mock_run_code_review(
+        base, target, max_rounds=3, ais="gpt4,gemini", verbosity="summary"
+    ):
         # Simulate artifact creation
         timestamp = "20250101-143000"
         base_dir = Path(temp_reviews_dir) / f"{target}-{timestamp}"
@@ -196,7 +204,7 @@ async def test_run_code_review_summary_response(mock_orchestrator, temp_reviews_
                 "result": "APPROVE_WITH_CHANGES",
                 "confidence": 0.95,
                 "participating_ais": ["claude-sonnet-4", "gpt-4", "gemini-pro"],
-                "rounds_completed": 3
+                "rounds_completed": 3,
             },
             "summary": {
                 "critical_issues": 2,
@@ -207,10 +215,10 @@ async def test_run_code_review_summary_response(mock_orchestrator, temp_reviews_
                 "key_findings": [
                     "SQL injection vulnerability found",
                     "Type safety issues in models",
-                    "Performance optimization needed"
+                    "Performance optimization needed",
                 ],
                 "files_reviewed": 12,
-                "total_changes": 145
+                "total_changes": 145,
             },
             "final_review_text": """# Code Review Summary
 
@@ -226,18 +234,15 @@ async def test_run_code_review_summary_response(mock_orchestrator, temp_reviews_
                 "summary_file": str(summary_file),
                 "full_transcript": str(full_transcript),
                 "rounds_dir": str(rounds_dir),
-                "consensus_log": str(consensus_log)
-            }
+                "consensus_log": str(consensus_log),
+            },
         }
 
         return response
 
     # Execute test
     response = await mock_run_code_review(
-        base="develop",
-        target="feature/large-change",
-        max_rounds=3,
-        verbosity="summary"
+        base="develop", target="feature/large-change", max_rounds=3, verbosity="summary"
     )
 
     # Assertions
@@ -285,7 +290,10 @@ async def test_audit_code_review_summary_response(temp_reviews_dir):
     Test 1-2: Verify audit_code_review summary mode returns < 5000 tokens
     and includes initial-review.md
     """
-    async def mock_audit_code_review(base, target, initial_review, max_rounds=3, ais="gpt4,gemini", verbosity="summary"):
+
+    async def mock_audit_code_review(
+        base, target, initial_review, max_rounds=3, ais="gpt4,gemini", verbosity="summary"
+    ):
         # Simulate artifact creation
         timestamp = "20250101-143000"
         base_dir = Path(temp_reviews_dir) / f"{target}-{timestamp}"
@@ -322,7 +330,7 @@ async def test_audit_code_review_summary_response(temp_reviews_dir):
                 "result": "APPROVE_WITH_CHANGES",
                 "confidence": 0.88,
                 "participating_ais": ["gpt-4", "gemini-pro"],
-                "rounds_completed": 3
+                "rounds_completed": 3,
             },
             "summary": {
                 "critical_issues": 3,
@@ -333,10 +341,10 @@ async def test_audit_code_review_summary_response(temp_reviews_dir):
                 "key_findings": [
                     "Original review missed security issues",
                     "Added 3 critical security findings",
-                    "Enhanced type safety recommendations"
+                    "Enhanced type safety recommendations",
                 ],
                 "files_reviewed": 8,
-                "total_changes": 98
+                "total_changes": 98,
             },
             "final_review_text": """# Code Review Audit Summary
 
@@ -352,8 +360,8 @@ Improved to: 9.2/10
                 "summary_file": str(summary_file),
                 "full_transcript": str(full_transcript),
                 "rounds_dir": str(rounds_dir),
-                "consensus_log": str(consensus_log)
-            }
+                "consensus_log": str(consensus_log),
+            },
         }
 
         return response
@@ -371,7 +379,7 @@ Improved to: 9.2/10
         target="feature/auth",
         initial_review=initial_review,
         max_rounds=3,
-        verbosity="summary"
+        verbosity="summary",
     )
 
     # Assertions
@@ -399,6 +407,7 @@ async def test_artifact_generation(temp_reviews_dir):
     """
     Test 2: Verify all artifacts are correctly generated
     """
+
     async def create_artifacts(session_id, target, max_rounds):
         timestamp = "20250101-143000"
         base_dir = Path(temp_reviews_dir) / f"{target}-{timestamp}"
@@ -411,7 +420,7 @@ async def test_artifact_generation(temp_reviews_dir):
             "consensus_log": base_dir / "consensus.json",
             "statistics": base_dir / "statistics.json",
             "review_type": base_dir / "review-type.txt",
-            "rounds_dir": base_dir / "rounds"
+            "rounds_dir": base_dir / "rounds",
         }
 
         # Create files
@@ -432,7 +441,7 @@ async def test_artifact_generation(temp_reviews_dir):
             "summary_file": str(artifacts["summary_file"]),
             "full_transcript": str(artifacts["full_transcript"]),
             "consensus_log": str(artifacts["consensus_log"]),
-            "rounds_dir": str(artifacts["rounds_dir"])
+            "rounds_dir": str(artifacts["rounds_dir"]),
         }
 
     # Execute
@@ -446,7 +455,9 @@ async def test_artifact_generation(temp_reviews_dir):
 
     # Round files check
     round_files = list(Path(artifacts["rounds_dir"]).glob("*.md"))
-    assert len(round_files) >= 6, f"Expected at least 6 round files (2 rounds × 3 AIs), got {len(round_files)}"
+    assert (
+        len(round_files) >= 6
+    ), f"Expected at least 6 round files (2 rounds × 3 AIs), got {len(round_files)}"
 
     # Verify file structure
     base_dir = Path(artifacts["summary_file"]).parent
@@ -470,7 +481,7 @@ async def test_mcp_token_limit():
             "result": "APPROVE_WITH_CHANGES",
             "confidence": 0.92,
             "participating_ais": ["claude-sonnet-4", "gpt-4", "gemini-pro"],
-            "rounds_completed": 3
+            "rounds_completed": 3,
         },
         "summary": {
             "critical_issues": 5,
@@ -478,19 +489,17 @@ async def test_mcp_token_limit():
             "medium_priority": 25,
             "low_priority": 10,
             "suggestions": 8,
-            "key_findings": [
-                "Finding " + str(i) for i in range(10)
-            ],
+            "key_findings": ["Finding " + str(i) for i in range(10)],
             "files_reviewed": 50,
-            "total_changes": 1000
+            "total_changes": 1000,
         },
         "final_review_text": "# Large Review\n\n" + ("Content " * 1000),  # ~4000 tokens
         "artifacts": {
             "summary_file": "/path/to/summary.md",
             "full_transcript": "/path/to/full-transcript.md",
             "rounds_dir": "/path/to/rounds/",
-            "consensus_log": "/path/to/consensus.json"
-        }
+            "consensus_log": "/path/to/consensus.json",
+        },
     }
 
     # Serialize to JSON and count tokens
@@ -507,8 +516,7 @@ async def test_mcp_token_limit():
     # Should truncate if needed
     if MockTokenCounter.count_tokens(large_response["final_review_text"]) > 5000:
         large_response["final_review_text"] = MockTokenCounter.truncate_to_tokens(
-            large_response["final_review_text"],
-            5000
+            large_response["final_review_text"], 5000
         )
 
     response_json = json.dumps(large_response, indent=2)
@@ -531,7 +539,7 @@ async def test_claude_can_use_context_run():
             "result": "APPROVE_WITH_CHANGES",
             "confidence": 0.91,
             "participating_ais": ["claude-sonnet-4", "gpt-4", "gemini-pro"],
-            "rounds_completed": 2
+            "rounds_completed": 2,
         },
         "summary": {
             "critical_issues": 2,
@@ -542,10 +550,10 @@ async def test_claude_can_use_context_run():
             "key_findings": [
                 "SQL injection vulnerability in auth module",
                 "Missing input validation in API endpoints",
-                "Performance bottleneck in data processing"
+                "Performance bottleneck in data processing",
             ],
             "files_reviewed": 8,
-            "total_changes": 76
+            "total_changes": 76,
         },
         "final_review_text": """# Code Review Summary: feature/auth
 
@@ -569,8 +577,8 @@ async def test_claude_can_use_context_run():
             "summary_file": "/docs/reviews/feature-auth/summary.md",
             "full_transcript": "/docs/reviews/feature-auth/full-transcript.md",
             "rounds_dir": "/docs/reviews/feature-auth/rounds/",
-            "consensus_log": "/docs/reviews/feature-auth/consensus.json"
-        }
+            "consensus_log": "/docs/reviews/feature-auth/consensus.json",
+        },
     }
 
     # Verify structured sections exist
@@ -584,8 +592,9 @@ async def test_claude_can_use_context_run():
 
     # Verify Claude can extract actionable items
     final_text = response["final_review_text"]
-    assert "[ ]" in final_text or "TODO" in final_text or "Recommendation" in final_text, \
-        "Must have actionable recommendations"
+    assert (
+        "[ ]" in final_text or "TODO" in final_text or "Recommendation" in final_text
+    ), "Must have actionable recommendations"
 
     # Verify severity indicators
     assert "🔴" in final_text or "CRITICAL" in final_text, "Must indicate severity"
@@ -606,7 +615,7 @@ async def test_claude_can_use_context_audit():
             "result": "APPROVE_WITH_CHANGES",
             "confidence": 0.87,
             "participating_ais": ["gpt-4", "gemini-pro"],
-            "rounds_completed": 2
+            "rounds_completed": 2,
         },
         "summary": {
             "critical_issues": 3,
@@ -617,10 +626,10 @@ async def test_claude_can_use_context_audit():
             "key_findings": [
                 "Original review missed critical security issues",
                 "Added comprehensive security analysis",
-                "Enhanced performance recommendations"
+                "Enhanced performance recommendations",
             ],
             "files_reviewed": 10,
-            "total_changes": 120
+            "total_changes": 120,
         },
         "final_review_text": """# Code Review Audit Summary: feature/payment
 
@@ -652,26 +661,27 @@ async def test_claude_can_use_context_audit():
             "summary_file": "/docs/reviews/feature-payment/summary.md",
             "full_transcript": "/docs/reviews/feature-payment/full-transcript.md",
             "rounds_dir": "/docs/reviews/feature-payment/rounds/",
-            "consensus_log": "/docs/reviews/feature-payment/consensus.json"
-        }
+            "consensus_log": "/docs/reviews/feature-payment/consensus.json",
+        },
     }
 
     # Verify audit-specific sections
-    assert "Audit Findings" in response["final_review_text"] or \
-           "Initial Review Assessment" in response["final_review_text"], \
-           "Must have audit-specific sections"
+    assert (
+        "Audit Findings" in response["final_review_text"]
+        or "Initial Review Assessment" in response["final_review_text"]
+    ), "Must have audit-specific sections"
 
-    assert "Issues Added by Auditors" in response["final_review_text"] or \
-           response["summary"]["critical_issues"] >= 0, \
-           "Must show what auditors added"
+    assert (
+        "Issues Added by Auditors" in response["final_review_text"]
+        or response["summary"]["critical_issues"] >= 0
+    ), "Must show what auditors added"
 
     # Verify key information
     assert len(response["summary"]["key_findings"]) > 0, "Must have key_findings"
 
     # Verify improvement tracking
     final_text = response["final_review_text"]
-    assert "Original" in final_text or "Initial" in final_text, \
-        "Must reference original review"
+    assert "Original" in final_text or "Initial" in final_text, "Must reference original review"
 
     print("✅ Test 4-2: Claude can use context (audit) - PASSED")
 
@@ -690,7 +700,7 @@ async def test_response_structure_consistency():
             "result": "APPROVED",
             "confidence": 0.95,
             "participating_ais": ["claude", "gpt4", "gemini"],
-            "rounds_completed": 3
+            "rounds_completed": 3,
         },
         "summary": {
             "critical_issues": 1,
@@ -700,15 +710,15 @@ async def test_response_structure_consistency():
             "suggestions": 4,
             "key_findings": ["Finding 1", "Finding 2"],
             "files_reviewed": 10,
-            "total_changes": 50
+            "total_changes": 50,
         },
         "final_review_text": "# Review",
         "artifacts": {
             "summary_file": "/path/summary.md",
             "full_transcript": "/path/transcript.md",
             "rounds_dir": "/path/rounds/",
-            "consensus_log": "/path/consensus.json"
-        }
+            "consensus_log": "/path/consensus.json",
+        },
     }
 
     # Mock audit_code_review response
@@ -719,7 +729,7 @@ async def test_response_structure_consistency():
             "result": "APPROVE_WITH_CHANGES",
             "confidence": 0.88,
             "participating_ais": ["gpt4", "gemini"],
-            "rounds_completed": 2
+            "rounds_completed": 2,
         },
         "summary": {
             "critical_issues": 2,
@@ -729,32 +739,36 @@ async def test_response_structure_consistency():
             "suggestions": 5,
             "key_findings": ["Finding A", "Finding B", "Finding C"],
             "files_reviewed": 8,
-            "total_changes": 40
+            "total_changes": 40,
         },
         "final_review_text": "# Audit Review",
         "artifacts": {
             "summary_file": "/path/audit_summary.md",
             "full_transcript": "/path/audit_transcript.md",
             "rounds_dir": "/path/audit_rounds/",
-            "consensus_log": "/path/audit_consensus.json"
-        }
+            "consensus_log": "/path/audit_consensus.json",
+        },
     }
 
     # Verify identical top-level structure
-    assert set(run_response.keys()) == set(audit_response.keys()), \
-        "Both responses must have identical top-level keys"
+    assert set(run_response.keys()) == set(
+        audit_response.keys()
+    ), "Both responses must have identical top-level keys"
 
     # Verify consensus structure
-    assert set(run_response["consensus"].keys()) == set(audit_response["consensus"].keys()), \
-        "Consensus structure must be identical"
+    assert set(run_response["consensus"].keys()) == set(
+        audit_response["consensus"].keys()
+    ), "Consensus structure must be identical"
 
     # Verify summary structure
-    assert set(run_response["summary"].keys()) == set(audit_response["summary"].keys()), \
-        "Summary structure must be identical"
+    assert set(run_response["summary"].keys()) == set(
+        audit_response["summary"].keys()
+    ), "Summary structure must be identical"
 
     # Verify artifacts structure
-    assert set(run_response["artifacts"].keys()) == set(audit_response["artifacts"].keys()), \
-        "Artifacts structure must be identical"
+    assert set(run_response["artifacts"].keys()) == set(
+        audit_response["artifacts"].keys()
+    ), "Artifacts structure must be identical"
 
     # Verify type compliance
     assert isinstance(run_response["session_id"], str)
@@ -779,7 +793,9 @@ async def test_token_truncation():
     token_count = MockTokenCounter.count_tokens(truncated)
 
     # Allow small margin for truncation indicator text
-    assert token_count <= 1010, f"Truncated text {token_count} tokens must be near token limit (1000)"
+    assert (
+        token_count <= 1010
+    ), f"Truncated text {token_count} tokens must be near token limit (1000)"
     assert truncated.endswith("...(truncated)"), "Must indicate truncation"
 
     print("✅ Token truncation utility - PASSED")
@@ -803,11 +819,24 @@ async def test_error_handling():
     response = {
         "session_id": "test",
         "status": "COMPLETED",
-        "consensus": {"result": "APPROVED", "confidence": 0.95, "participating_ais": [], "rounds_completed": 1},
-        "summary": {"critical_issues": 0, "high_priority": 0, "medium_priority": 0, "low_priority": 0,
-                   "suggestions": 0, "key_findings": [], "files_reviewed": 0, "total_changes": 0},
+        "consensus": {
+            "result": "APPROVED",
+            "confidence": 0.95,
+            "participating_ais": [],
+            "rounds_completed": 1,
+        },
+        "summary": {
+            "critical_issues": 0,
+            "high_priority": 0,
+            "medium_priority": 0,
+            "low_priority": 0,
+            "suggestions": 0,
+            "key_findings": [],
+            "files_reviewed": 0,
+            "total_changes": 0,
+        },
         "final_review_text": "",
-        "artifacts": {}
+        "artifacts": {},
     }
     assert response["session_id"] is not None, "Session ID must exist"
 
@@ -820,9 +849,9 @@ async def test_all_requirements():
     """
     Master test that verifies all requirements are met
     """
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("RUNNING COMPREHENSIVE TEST SUITE")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     # This would run all tests in sequence
     # In actual pytest, tests run via pytest command
@@ -837,16 +866,16 @@ async def test_all_requirements():
         "Test 5: Response structure consistency": True,
     }
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("REQUIREMENTS VERIFICATION")
-    print("="*60)
+    print("=" * 60)
     for requirement, met in requirements_met.items():
         status = "✅ PASS" if met else "❌ FAIL"
         print(f"{status}: {requirement}")
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print(f"TOTAL: {sum(requirements_met.values())}/{len(requirements_met)} tests passed")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     assert all(requirements_met.values()), "All requirements must be met"
 

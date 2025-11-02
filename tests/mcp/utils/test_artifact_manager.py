@@ -2,10 +2,11 @@
 Unit tests for artifact_manager module (integration tests).
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
+
+import pytest
 
 from consensus_code_review.mcp.utils.artifact_manager import (
     generate_complete_artifacts,
@@ -32,7 +33,7 @@ def sample_run_review_data():
                 "review": "# Review\n\nSecurity issues found.",
                 "timestamp": "2025-11-01T10:00:00",
                 "feedback": ["Add authentication"],
-                "changes": ["Added auth middleware"]
+                "changes": ["Added auth middleware"],
             }
         ],
         "consensus": {
@@ -40,8 +41,8 @@ def sample_run_review_data():
             "total_rounds": 1,
             "ais": ["claude-3-5-sonnet-20241022"],
             "final_review": "Security improvements needed.",
-            "timestamp": "2025-11-01T10:05:00"
-        }
+            "timestamp": "2025-11-01T10:05:00",
+        },
     }
 
 
@@ -55,7 +56,7 @@ def sample_audit_review_data():
             {
                 "ai_name": "gpt-4-turbo",
                 "review": "# Audit\n\nConfirmed issues.",
-                "timestamp": "2025-11-01T11:00:00"
+                "timestamp": "2025-11-01T11:00:00",
             }
         ],
         "consensus": {
@@ -63,8 +64,8 @@ def sample_audit_review_data():
             "total_rounds": 1,
             "ais": ["gpt-4-turbo"],
             "final_review": "Issues confirmed.",
-            "timestamp": "2025-11-01T11:05:00"
-        }
+            "timestamp": "2025-11-01T11:05:00",
+        },
     }
 
 
@@ -72,10 +73,7 @@ def sample_audit_review_data():
 async def test_generate_complete_artifacts_run_type(temp_dir, sample_run_review_data):
     """Test complete artifact generation for run type."""
     paths = await generate_complete_artifacts(
-        review_data=sample_run_review_data,
-        target="feature-branch",
-        base="main",
-        base_dir=temp_dir
+        review_data=sample_run_review_data, target="feature-branch", base="main", base_dir=temp_dir
     )
 
     # Check returned paths
@@ -114,10 +112,7 @@ async def test_generate_complete_artifacts_run_type(temp_dir, sample_run_review_
 async def test_generate_complete_artifacts_audit_type(temp_dir, sample_audit_review_data):
     """Test complete artifact generation for audit type."""
     paths = await generate_complete_artifacts(
-        review_data=sample_audit_review_data,
-        target="security-fix",
-        base="main",
-        base_dir=temp_dir
+        review_data=sample_audit_review_data, target="security-fix", base="main", base_dir=temp_dir
     )
 
     # Check returned paths (should include initial_review)
@@ -147,10 +142,7 @@ async def test_load_review_artifacts_run_type(temp_dir, sample_run_review_data):
     """Test loading review artifacts for run type."""
     # First generate artifacts
     paths = await generate_complete_artifacts(
-        review_data=sample_run_review_data,
-        target="feature-branch",
-        base="main",
-        base_dir=temp_dir
+        review_data=sample_run_review_data, target="feature-branch", base="main", base_dir=temp_dir
     )
 
     # Then load them back
@@ -169,10 +161,7 @@ async def test_load_review_artifacts_audit_type(temp_dir, sample_audit_review_da
     """Test loading review artifacts for audit type."""
     # First generate artifacts
     paths = await generate_complete_artifacts(
-        review_data=sample_audit_review_data,
-        target="security-fix",
-        base="main",
-        base_dir=temp_dir
+        review_data=sample_audit_review_data, target="security-fix", base="main", base_dir=temp_dir
     )
 
     # Then load them back
@@ -207,10 +196,7 @@ async def test_complete_workflow(temp_dir, sample_run_review_data):
     """Test complete workflow: generate → load → verify."""
     # Generate
     paths = await generate_complete_artifacts(
-        review_data=sample_run_review_data,
-        target="test-branch",
-        base="main",
-        base_dir=temp_dir
+        review_data=sample_run_review_data, target="test-branch", base="main", base_dir=temp_dir
     )
 
     # Verify directory structure

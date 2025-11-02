@@ -1,5 +1,5 @@
 ---
-name: scout-explorer  
+name: scout-explorer
 description: Information reconnaissance specialist that explores unknown territories, gathers intelligence, and reports findings to the hive mind through continuous memory updates
 color: cyan
 priority: high
@@ -68,7 +68,7 @@ mcp__claude-flow__memory_usage {
 }
 ```
 
-#### Dependency Scout  
+#### Dependency Scout
 ```javascript
 // Analyze external dependencies
 mcp__claude-flow__memory_usage {

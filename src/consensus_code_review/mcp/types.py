@@ -4,7 +4,7 @@ This module defines TypedDict structures for the hybrid review response
 that combines inline summaries with file artifacts.
 """
 
-from typing import TypedDict, Literal
+from typing import Literal, TypedDict
 
 
 class ConsensusResult(TypedDict):
@@ -16,6 +16,7 @@ class ConsensusResult(TypedDict):
         participating_ais: List of AI names that participated
         rounds_completed: Number of review rounds completed
     """
+
     result: Literal["APPROVED", "APPROVE_WITH_CHANGES", "REJECTED", "NO_CONSENSUS"]
     confidence: float
     participating_ais: list[str]
@@ -35,6 +36,7 @@ class ReviewSummary(TypedDict):
         files_reviewed: Number of files reviewed
         total_changes: Total number of changes
     """
+
     critical_issues: int
     high_priority: int
     medium_priority: int
@@ -54,6 +56,7 @@ class ArtifactPaths(TypedDict):
         rounds_dir: Path to rounds directory
         consensus_log: Path to consensus.json file
     """
+
     summary_file: str
     full_transcript: str
     rounds_dir: str
@@ -74,6 +77,7 @@ class ReviewResponse(TypedDict):
         final_review_text: Final review content (< 5000 tokens)
         artifacts: Paths to detailed artifact files
     """
+
     session_id: str
     status: Literal["COMPLETED", "IN_PROGRESS", "FAILED"]
     consensus: ConsensusResult

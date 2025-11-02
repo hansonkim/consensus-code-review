@@ -52,7 +52,7 @@ mcp__claude-flow__memory_usage {
 ```javascript
 // SYNC memory across all agents
 mcp__claude-flow__memory_usage {
-  action: "store", 
+  action: "store",
   key: "swarm/shared/sync-manifest",
   namespace: "coordination",
   value: JSON.stringify({
@@ -68,7 +68,7 @@ mcp__claude-flow__memory_usage {
 mcp__claude-flow__memory_usage {
   action: "store",
   key: "swarm/broadcast/memory-update",
-  namespace: "coordination", 
+  namespace: "coordination",
   value: JSON.stringify({
     update_type: "incremental|full",
     affected_keys: ["key1", "key2"],
@@ -119,12 +119,12 @@ const atomicWrite = async (key, value) => {
     key: key,
     namespace: "coordination"
   };
-  
+
   if (current.found && current.version !== expectedVersion) {
     // Resolve conflict
     value = resolveConflict(current.value, value);
   }
-  
+
   // Write with versioning
   mcp__claude-flow__memory_usage {
     action: "store",

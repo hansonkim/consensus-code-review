@@ -14,6 +14,7 @@ class AIModel:
         display_name: 화면 표시용 전체 이름 (예: "Claude (Anthropic)")
         test_command: 가용성 테스트용 명령어 (예: ["claude", "--version"])
     """
+
     name: str
     command: List[str]
     display_name: str

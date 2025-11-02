@@ -1,12 +1,13 @@
 """AI 모델 관리 서비스"""
 
 import subprocess
-from typing import Dict
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from ai_cli_tools.models import AIModel
+from typing import Dict
+
 from ai_cli_tools.cache import CacheManager
-from ai_cli_tools.constants import ALL_AI_MODELS, MODEL_CHECK_TIMEOUT, MIN_REVIEWERS
+from ai_cli_tools.constants import ALL_AI_MODELS, MIN_REVIEWERS, MODEL_CHECK_TIMEOUT
 from ai_cli_tools.exceptions import NoAvailableModelsError
+from ai_cli_tools.models import AIModel
 
 
 class ModelManager:
@@ -25,11 +26,7 @@ class ModelManager:
         self.cache_manager = cache_manager
         self.available_models: Dict[str, AIModel] = {}
 
-    def check_model_availability(
-        self,
-        model_key: str,
-        model: AIModel
-    ) -> bool:
+    def check_model_availability(self, model_key: str, model: AIModel) -> bool:
         """특정 AI 모델의 CLI가 사용 가능한지 확인
 
         Args:
@@ -48,7 +45,7 @@ class ModelManager:
                 capture_output=True,
                 text=True,
                 timeout=MODEL_CHECK_TIMEOUT * 2,
-                encoding='utf-8'
+                encoding="utf-8",
             )
             # CLI가 없거나 심각한 오류면 즉시 False
             if result.returncode not in [0, 1]:
@@ -69,7 +66,7 @@ class ModelManager:
                 capture_output=True,
                 text=True,
                 timeout=10.0,  # AI API 호출은 충분한 시간 필요 (10초)
-                encoding='utf-8'
+                encoding="utf-8",
             )
 
             # stdout과 stderr 모두에서 명확한 에러만 확인
@@ -78,11 +75,11 @@ class ModelManager:
             # 크레딧/인증 관련 명확한 에러 키워드
             critical_errors = [
                 "doesn't have any credits",
-                'purchase credits',
-                'no credits',
-                'credit balance',
-                'billing',
-                'payment required'
+                "purchase credits",
+                "no credits",
+                "credit balance",
+                "billing",
+                "payment required",
             ]
 
             # 명확한 크레딧/결제 에러가 있으면 사용 불가
@@ -119,12 +116,10 @@ class ModelManager:
             if cached_keys:
                 print("✅ 캐시된 AI 모델 정보 사용")
                 self.available_models = {
-                    key: ALL_AI_MODELS[key]
-                    for key in cached_keys
-                    if key in ALL_AI_MODELS
+                    key: ALL_AI_MODELS[key] for key in cached_keys if key in ALL_AI_MODELS
                 }
                 if len(self.available_models) >= MIN_REVIEWERS:
-                    model_names = ', '.join(m.display_name for m in self.available_models.values())
+                    model_names = ", ".join(m.display_name for m in self.available_models.values())
                     print(f"🤖 사용 가능한 AI 모델: {model_names}\n")
                     return
                 else:
@@ -171,7 +166,7 @@ class ModelManager:
         self.cache_manager.save_cached_models(available_keys)
 
         print(f"\n✅ {len(self.available_models)}개의 AI 리뷰어 사용 가능")
-        model_names = ', '.join(m.display_name for m in self.available_models.values())
+        model_names = ", ".join(m.display_name for m in self.available_models.values())
         print(f"🤖 사용 가능한 리뷰어: {model_names}\n")
 
     def get_available_models(self) -> Dict[str, AIModel]:

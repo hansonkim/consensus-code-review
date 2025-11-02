@@ -105,6 +105,33 @@ cp config/claude_mcp_config.json.template config/claude_mcp_config.json
 - `mypy>=1.5.0` - 타입 체킹
 - `black>=23.7.0` - 코드 포매팅
 - `ruff>=0.1.0` - 린팅
+- `pre-commit>=3.5.0` - Git 커밋 전 자동 검사
+
+#### 개발자 도구 설정
+
+코드 품질 유지를 위해 pre-commit hook을 설정하세요:
+
+```bash
+# pre-commit 설치 (dev dependencies에 포함됨)
+uv pip install -e ".[dev]"
+
+# Git hook 설치
+pre-commit install
+
+# 모든 파일에 대해 수동 실행 (선택사항)
+pre-commit run --all-files
+```
+
+**자동으로 실행되는 검사들:**
+- ✅ **Ruff linter**: 코드 품질 이슈 자동 수정
+- ✅ **Ruff formatter**: 코드 스타일 자동 포매팅
+- ✅ **Trailing whitespace**: 줄 끝 공백 제거
+- ✅ **End of file**: 파일 끝 빈 줄 추가
+- ✅ **YAML/TOML/JSON syntax**: 설정 파일 문법 검사
+- ✅ **Large files**: 1MB 이상 파일 경고
+- ✅ **Merge conflicts**: 병합 충돌 마커 검사
+
+이제 `git commit` 시 자동으로 코드 품질 검사가 실행됩니다!
 
 ### ⚠️ 보안 및 로컬 개발 주의사항
 

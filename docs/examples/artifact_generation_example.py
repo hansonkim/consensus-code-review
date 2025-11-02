@@ -5,6 +5,7 @@ Demonstrates both 'run' and 'audit' review workflows.
 """
 
 import asyncio
+
 from consensus_code_review.mcp.utils import generate_complete_artifacts, load_review_artifacts
 
 
@@ -34,14 +35,8 @@ async def example_run_review():
 - Minor: Missing docstrings in public methods
 """,
                 "timestamp": "2025-11-01T10:00:00",
-                "feedback": [
-                    "Add input validation middleware",
-                    "Implement parameterized queries"
-                ],
-                "changes": [
-                    "Added SQL injection prevention",
-                    "Implemented query optimization"
-                ]
+                "feedback": ["Add input validation middleware", "Implement parameterized queries"],
+                "changes": ["Added SQL injection prevention", "Implemented query optimization"],
             },
             {
                 "ai_name": "gemini-2-0-flash-exp",
@@ -60,11 +55,8 @@ Confirmed security vulnerabilities from Round 1.
 """,
                 "timestamp": "2025-11-01T10:05:00",
                 "feedback": [],
-                "changes": [
-                    "Added rate limiting middleware",
-                    "Improved test coverage to 85%"
-                ]
-            }
+                "changes": ["Added rate limiting middleware", "Improved test coverage to 85%"],
+            },
         ],
         "consensus": {
             "reached": True,
@@ -88,18 +80,13 @@ Code quality is acceptable with critical security improvements needed.
 - API documentation
 """,
             "timestamp": "2025-11-01T10:10:00",
-            "metadata": {
-                "max_rounds": 5,
-                "confidence_score": 0.92
-            }
-        }
+            "metadata": {"max_rounds": 5, "confidence_score": 0.92},
+        },
     }
 
     # Generate artifacts
     paths = await generate_complete_artifacts(
-        review_data=review_data,
-        target="feature/user-authentication",
-        base="main"
+        review_data=review_data, target="feature/user-authentication", base="main"
     )
 
     print("\n✅ Artifacts generated successfully!")
@@ -160,11 +147,8 @@ I've reviewed the authentication module and found several issues:
 All issues in initial review are valid. Additional security measures required.
 """,
                 "timestamp": "2025-11-01T11:00:00",
-                "feedback": [
-                    "Add CSRF tokens to forms",
-                    "Implement password complexity rules"
-                ],
-                "changes": []
+                "feedback": ["Add CSRF tokens to forms", "Implement password complexity rules"],
+                "changes": [],
             },
             {
                 "ai_name": "claude-3-opus",
@@ -186,11 +170,8 @@ Week 3: Address P2 issues
 """,
                 "timestamp": "2025-11-01T11:05:00",
                 "feedback": [],
-                "changes": [
-                    "Created security roadmap",
-                    "Prioritized fixes"
-                ]
-            }
+                "changes": ["Created security roadmap", "Prioritized fixes"],
+            },
         ],
         "consensus": {
             "reached": True,
@@ -213,19 +194,13 @@ Multiple AI models confirm all findings and identified additional issues.
 **DO NOT MERGE** until all P0 issues are resolved.
 """,
             "timestamp": "2025-11-01T11:10:00",
-            "metadata": {
-                "audit_confidence": 0.98,
-                "issues_confirmed": 6,
-                "new_issues_found": 3
-            }
-        }
+            "metadata": {"audit_confidence": 0.98, "issues_confirmed": 6, "new_issues_found": 3},
+        },
     }
 
     # Generate artifacts
     paths = await generate_complete_artifacts(
-        review_data=review_data,
-        target="security/authentication-fix",
-        base="main"
+        review_data=review_data, target="security/authentication-fix", base="main"
     )
 
     print("\n✅ Audit artifacts generated successfully!")
@@ -246,7 +221,7 @@ async def example_load_artifacts(review_dir: str):
 
     loaded_data = await load_review_artifacts(review_dir)
 
-    print(f"\n📖 Loaded Review Data:")
+    print("\n📖 Loaded Review Data:")
     print(f"   Type: {loaded_data.get('review_type', 'Unknown')}")
     print(f"   Rounds: {len(loaded_data.get('rounds', []))}")
 
@@ -256,7 +231,7 @@ async def example_load_artifacts(review_dir: str):
         print(f"   AIs: {', '.join(consensus.get('participating_ais', []))}")
 
     if "initial_review" in loaded_data:
-        print(f"   Has Initial Review: Yes (audit type)")
+        print("   Has Initial Review: Yes (audit type)")
 
     return loaded_data
 

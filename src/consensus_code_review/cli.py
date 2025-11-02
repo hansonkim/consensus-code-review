@@ -13,7 +13,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Iterable, Optional
+from typing import Iterable
 
 from . import get_version
 from .mcp import MCPManager
@@ -54,7 +54,7 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _handle_server(log_file: Optional[Path]) -> None:
+def _handle_server(log_file: Path | None) -> None:
     run_stdio_server(log_path=log_file)
 
 
@@ -73,7 +73,7 @@ def _handle_version() -> None:
     print(get_version())
 
 
-def app(argv: Optional[Iterable[str]] = None) -> None:
+def app(argv: Iterable[str] | None = None) -> None:
     """Entry point for console script and `python -m consensus_code_review`."""
     parser = _build_parser()
     args = parser.parse_args(argv)

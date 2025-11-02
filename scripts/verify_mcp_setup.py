@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Verify MCP server setup"""
+
 import json
 import subprocess
 import sys
 from pathlib import Path
+
 
 def test_server_starts():
     """Test if server can start"""
@@ -16,7 +18,7 @@ def test_server_starts():
             input=json.dumps(request),
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         response = json.loads(result.stdout)
         assert response.get("result", {}).get("serverInfo", {}).get("name") == "ai-code-review-mcp"
@@ -25,6 +27,7 @@ def test_server_starts():
     except Exception as e:
         print(f"   ❌ Server failed to start: {e}")
         return False
+
 
 def test_tools_list():
     """Test if tools can be listed"""
@@ -36,7 +39,7 @@ def test_tools_list():
             input=json.dumps(request),
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         response = json.loads(result.stdout)
         tools = response.get("result", {}).get("tools", [])
@@ -49,6 +52,7 @@ def test_tools_list():
         print(f"   ❌ Tools list failed: {e}")
         return False
 
+
 def test_filesystem_tool():
     """Test filesystem.read_file"""
     print("3. Testing filesystem_read_file...")
@@ -57,17 +61,14 @@ def test_filesystem_tool():
             "jsonrpc": "2.0",
             "id": 3,
             "method": "tools/call",
-            "params": {
-                "name": "filesystem_read_file",
-                "arguments": {"path": "README.md"}
-            }
+            "params": {"name": "filesystem_read_file", "arguments": {"path": "README.md"}},
         }
         result = subprocess.run(
             ["python3", "src/mcp/server.py"],
             input=json.dumps(request),
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
         response = json.loads(result.stdout)
         content = response.get("result", {}).get("content", [{}])[0].get("text", "")
@@ -77,6 +78,7 @@ def test_filesystem_tool():
     except Exception as e:
         print(f"   ❌ Filesystem tool failed: {e}")
         return False
+
 
 def check_config_file():
     """Check if Claude config exists"""
@@ -98,8 +100,9 @@ def check_config_file():
             return False
     else:
         print(f"   ⚠️  Config file not found: {config_path}")
-        print(f"      Create it with the configuration from docs/MCP_SETUP.md")
+        print("      Create it with the configuration from docs/MCP_SETUP.md")
         return False
+
 
 if __name__ == "__main__":
     print("=" * 70)
@@ -107,12 +110,7 @@ if __name__ == "__main__":
     print("=" * 70)
     print()
 
-    results = [
-        test_server_starts(),
-        test_tools_list(),
-        test_filesystem_tool(),
-        check_config_file()
-    ]
+    results = [test_server_starts(), test_tools_list(), test_filesystem_tool(), check_config_file()]
 
     print()
     print("=" * 70)

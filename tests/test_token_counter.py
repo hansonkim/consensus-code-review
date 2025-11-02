@@ -1,15 +1,15 @@
 """Unit tests for token counter utilities."""
 
 import pytest
+
 from consensus_code_review.mcp.utils.token_counter import (
+    MCP_MAX_TOKENS,
     count_tokens,
-    truncate_to_tokens,
-    validate_response_size,
+    format_token_warning,
     get_token_stats,
     get_verbosity_limit,
-    format_token_warning,
-    VERBOSITY_LIMITS,
-    MCP_MAX_TOKENS
+    truncate_to_tokens,
+    validate_response_size,
 )
 
 
@@ -59,9 +59,7 @@ class TestTruncateToTokens:
         """Test truncation with custom suffix."""
         text = "Long text " * 500
         suffix = "...END"
-        truncated, was_truncated = truncate_to_tokens(
-            text, 50, suffix=suffix
-        )
+        truncated, was_truncated = truncate_to_tokens(text, 50, suffix=suffix)
 
         assert was_truncated is True
         assert truncated.endswith(suffix)
@@ -80,7 +78,9 @@ class TestValidateResponseSize:
         """Test validation fails for text exceeding limit."""
         # Create text that exceeds MCP limit (~25k tokens)
         # Each token is roughly 4 characters, so need ~100k+ characters
-        text = "This is test text that will be repeated many times. " * 5000  # ~260k characters, ~65k tokens
+        text = (
+            "This is test text that will be repeated many times. " * 5000
+        )  # ~260k characters, ~65k tokens
 
         with pytest.raises(ValueError) as exc_info:
             validate_response_size(text)
@@ -205,7 +205,9 @@ class TestIntegration:
     def test_full_workflow_with_truncation(self):
         """Test complete workflow with truncation."""
         # Create long text that definitely exceeds summary limit
-        text = "This is a very detailed code review with lots of information. " * 1000  # ~10k tokens
+        text = (
+            "This is a very detailed code review with lots of information. " * 1000
+        )  # ~10k tokens
 
         # Count tokens
         token_count = count_tokens(text)
@@ -253,9 +255,7 @@ class TestEdgeCases:
         """Test when suffix is longer than token limit."""
         text = "Test text that needs truncation " * 50  # Make text long enough to need truncation
         suffix = "Very long suffix " * 20  # ~60 tokens
-        truncated, was_truncated = truncate_to_tokens(
-            text, 10, suffix=suffix
-        )
+        truncated, was_truncated = truncate_to_tokens(text, 10, suffix=suffix)
 
         # Should still handle gracefully
         assert was_truncated

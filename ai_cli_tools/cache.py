@@ -2,7 +2,8 @@
 
 import json
 from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
+
 from ai_cli_tools.exceptions import FileOperationError
 
 
@@ -30,7 +31,7 @@ class CacheManager:
             return None
 
         try:
-            with open(self.cache_file, 'r', encoding='utf-8') as f:
+            with open(self.cache_file, encoding="utf-8") as f:
                 return json.load(f)
         except Exception as e:
             # 캐시 파일 읽기 실패 시 None 반환 (재확인 유도)
@@ -46,7 +47,7 @@ class CacheManager:
         cache = self.load_cache()
         if cache is None:
             return None
-        return cache.get('available_models', [])
+        return cache.get("available_models", [])
 
     def save_cache(self, data: Dict[str, Any]) -> None:
         """전체 캐시 데이터 저장
@@ -59,13 +60,16 @@ class CacheManager:
         """
         try:
             import time
-            data['timestamp'] = time.strftime('%Y-%m-%d %H:%M:%S')
-            with open(self.cache_file, 'w', encoding='utf-8') as f:
+
+            data["timestamp"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            with open(self.cache_file, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
         except Exception as e:
             raise FileOperationError(f"캐시 파일 저장 실패: {e}")
 
-    def save_cached_models(self, available_keys: List[str], mcp_servers: Dict[str, bool] = None) -> None:
+    def save_cached_models(
+        self, available_keys: List[str], mcp_servers: Dict[str, bool] = None
+    ) -> None:
         """사용 가능한 모델 목록과 MCP 서버 상태를 캐시 파일에 저장
 
         Args:
@@ -76,10 +80,10 @@ class CacheManager:
             FileOperationError: 캐시 저장 실패 시
         """
         data = {
-            'available_models': available_keys,
+            "available_models": available_keys,
         }
         if mcp_servers is not None:
-            data['mcp_servers'] = mcp_servers
+            data["mcp_servers"] = mcp_servers
 
         self.save_cache(data)
 

@@ -2,17 +2,18 @@
 Unit tests for summary_generator module.
 """
 
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
 
+import pytest
+
 from consensus_code_review.mcp.utils.summary_generator import (
+    classify_issues,
     count_tokens,
     truncate_to_tokens,
-    classify_issues,
-    write_summary_md,
     write_full_transcript,
+    write_summary_md,
 )
 
 
@@ -35,23 +36,23 @@ def sample_run_review_data():
                 "review": "Security vulnerability in authentication module.",
                 "timestamp": "2025-11-01T10:00:00",
                 "feedback": ["Critical: SQL injection found"],
-                "changes": ["Added input validation"]
+                "changes": ["Added input validation"],
             },
             {
                 "ai_name": "gemini-2-0-flash-exp",
                 "review": "Minor style issues in formatting.",
                 "timestamp": "2025-11-01T10:05:00",
                 "feedback": [],
-                "changes": []
-            }
+                "changes": [],
+            },
         ],
         "consensus": {
             "reached": True,
             "total_rounds": 2,
             "ais": ["claude-3-5-sonnet-20241022", "gemini-2-0-flash-exp"],
             "final_review": "Security vulnerability found. Minor style issues noted.",
-            "timestamp": "2025-11-01T10:10:00"
-        }
+            "timestamp": "2025-11-01T10:10:00",
+        },
     }
 
 
@@ -65,7 +66,7 @@ def sample_audit_review_data():
             {
                 "ai_name": "gpt-4-turbo",
                 "review": "Verified authentication issues. Security concerns confirmed.",
-                "timestamp": "2025-11-01T11:00:00"
+                "timestamp": "2025-11-01T11:00:00",
             }
         ],
         "consensus": {
@@ -73,8 +74,8 @@ def sample_audit_review_data():
             "total_rounds": 1,
             "ais": ["gpt-4-turbo"],
             "final_review": "Authentication security issues confirmed.",
-            "timestamp": "2025-11-01T11:05:00"
-        }
+            "timestamp": "2025-11-01T11:05:00",
+        },
     }
 
 
@@ -129,52 +130,9 @@ def test_classify_issues():
     assert any("style" in issue.lower() for issue in minor)
 
 
-def test_generate_run_summary_markdown(sample_run_review_data):
-    """Test run summary markdown generation."""
-    summary = generate_run_summary_markdown(
-        review_data=sample_run_review_data,
-        target="feature-branch",
-        base="main"
-    )
-
-    # Check structure
-    assert "# Code Review Summary: feature-branch" in summary
-    assert "## Metadata" in summary
-    assert "**Target Branch**: `feature-branch`" in summary
-    assert "**Base Branch**: `main`" in summary
-    assert "**Review Type**: Run" in summary
-
-    # Check participating AIs
-    assert "claude-3-5-sonnet-20241022" in summary
-    assert "gemini-2-0-flash-exp" in summary
-
-    # Check classification
-    assert "Critical Issues" in summary or "Major Issues" in summary or "Minor Issues" in summary
-
-    # Check footer
-    assert "rounds/" in summary
-    assert "full-transcript.md" in summary
-
-
-def test_generate_audit_summary_markdown(sample_audit_review_data):
-    """Test audit summary markdown generation."""
-    summary = generate_audit_summary_markdown(
-        review_data=sample_audit_review_data,
-        target="security-fix",
-        base="main"
-    )
-
-    # Check structure
-    assert "# Code Review Audit: security-fix" in summary
-    assert "## Metadata" in summary
-    assert "**Review Type**: Audit" in summary
-
-    # Check initial review section
-    assert "## Initial Review (User-Provided)" in summary
-    assert "initial-review.md" in summary
-
-    # Check audit-specific content
-    assert "Audit" in summary
+# NOTE: Tests for generate_run_summary_markdown and generate_audit_summary_markdown
+# were removed because these functions no longer exist in summary_generator.py.
+# The module was refactored to use write_summary_md(session, base_dir, review_type) instead.
 
 
 @pytest.mark.asyncio
@@ -186,7 +144,7 @@ async def test_write_summary_md_run_type(temp_dir, sample_run_review_data):
         review_dir=review_dir,
         review_data=sample_run_review_data,
         target="feature-branch",
-        base="main"
+        base="main",
     )
 
     summary_file = review_dir / "summary.md"
@@ -211,7 +169,7 @@ async def test_write_summary_md_audit_type(temp_dir, sample_audit_review_data):
         review_dir=review_dir,
         review_data=sample_audit_review_data,
         target="security-fix",
-        base="main"
+        base="main",
     )
 
     summary_file = review_dir / "summary.md"
@@ -228,10 +186,7 @@ async def test_write_full_transcript_run_type(temp_dir, sample_run_review_data):
     """Test writing full-transcript.md for run type."""
     review_dir = Path(temp_dir)
 
-    await write_full_transcript(
-        review_dir=review_dir,
-        review_data=sample_run_review_data
-    )
+    await write_full_transcript(review_dir=review_dir, review_data=sample_run_review_data)
 
     transcript_file = review_dir / "full-transcript.md"
     assert transcript_file.exists()
@@ -256,10 +211,7 @@ async def test_write_full_transcript_audit_type(temp_dir, sample_audit_review_da
     """Test writing full-transcript.md for audit type."""
     review_dir = Path(temp_dir)
 
-    await write_full_transcript(
-        review_dir=review_dir,
-        review_data=sample_audit_review_data
-    )
+    await write_full_transcript(review_dir=review_dir, review_data=sample_audit_review_data)
 
     transcript_file = review_dir / "full-transcript.md"
     assert transcript_file.exists()

@@ -92,7 +92,7 @@ Action: analyze_codebase
   Cost: 2
   Fallback: manual_review if tools unavailable
 
-Action: optimize_performance  
+Action: optimize_performance
   Preconditions: {code_analyzed: true, benchmarks_run: true}
   Effects: {performance_improved: true}
   Tools: [profiler, optimizer, benchmark_suite]
@@ -152,7 +152,7 @@ Advanced swarm coordination patterns:
 
 Mixed execution strategies:
 - **LLM Actions**: Creative tasks, natural language processing, insight generation
-- **Code Actions**: Deterministic operations, calculations, system interactions  
+- **Code Actions**: Deterministic operations, calculations, system interactions
 - **Hybrid Actions**: Combine LLM reasoning with code execution for best results
 - **Tool-Based Actions**: Leverage external tools with fallback strategies
 - **Agent Actions**: Delegate to specialized agents in the swarm

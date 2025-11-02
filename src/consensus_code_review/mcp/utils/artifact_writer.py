@@ -62,6 +62,7 @@ def save_review_artifacts(session: "ReviewSession") -> ArtifactPaths:
 
     # Write summary
     from .summary_generator import write_summary_md
+
     summary_path = write_summary_md(session, str(base_dir), review_type)
 
     # Write full transcript
@@ -80,7 +81,7 @@ def save_review_artifacts(session: "ReviewSession") -> ArtifactPaths:
         summary_file=summary_path,
         full_transcript=str(transcript_path),
         rounds_dir=str(rounds_dir),
-        consensus_log=str(consensus_path)
+        consensus_log=str(consensus_path),
     )
 
 
@@ -128,7 +129,7 @@ def _write_full_transcript(session: "ReviewSession", base_dir: Path) -> Path:
         f"**Rounds**: {session.current_round}",
         "",
         "---",
-        ""
+        "",
     ]
 
     for round_num in range(1, session.current_round + 1):
@@ -155,9 +156,15 @@ def _write_round_files(session: "ReviewSession", rounds_dir: Path, review_type: 
     for ai_name, rounds in session.reviews.items():
         for round_num, review_data in rounds.items():
             ai_lower = ai_name.lower()
-            
+
             if review_type == "run":
-                stage = "initial" if round_num == 1 else "revised" if round_num < session.current_round else "final"
+                stage = (
+                    "initial"
+                    if round_num == 1
+                    else "revised"
+                    if round_num < session.current_round
+                    else "final"
+                )
             else:
                 stage = "feedback" if ai_name != "USER" else "revised"
 
@@ -185,12 +192,16 @@ def _write_consensus_json(session: "ReviewSession", base_dir: Path, review_type:
 
     ais_info = []
     for ai_name in session.reviews.keys():
-        role = "primary_reviewer" if ai_name == "CLAUDE" else "validator" if ai_name != "USER" else "author"
-        ais_info.append({
-            "name": ai_name,
-            "role": role,
-            "rounds_participated": len(session.reviews[ai_name])
-        })
+        role = (
+            "primary_reviewer"
+            if ai_name == "CLAUDE"
+            else "validator"
+            if ai_name != "USER"
+            else "author"
+        )
+        ais_info.append(
+            {"name": ai_name, "role": role, "rounds_participated": len(session.reviews[ai_name])}
+        )
 
     consensus_data = {
         "session_id": session.session_id,
@@ -200,12 +211,12 @@ def _write_consensus_json(session: "ReviewSession", base_dir: Path, review_type:
         "consensus": {
             "result": "APPROVED" if session.consensus_reached else "IN_PROGRESS",
             "confidence": 0.95 if session.consensus_reached else 0.0,
-            "rounds": session.current_round
+            "rounds": session.current_round,
         },
         "ais": ais_info,
         "issues": issues,
         "files_changed": 0,
-        "total_changes": 0
+        "total_changes": 0,
     }
 
     consensus_file.write_text(json.dumps(consensus_data, indent=2))
@@ -223,7 +234,7 @@ def _write_statistics_json(session: "ReviewSession", base_dir: Path) -> None:
         "max_rounds": session.max_rounds,
         "participating_ais": len(session.reviews),
         "total_reviews_submitted": sum(len(rounds) for rounds in session.reviews.values()),
-        "consensus_reached": session.consensus_reached
+        "consensus_reached": session.consensus_reached,
     }
 
     stats_file.write_text(json.dumps(stats, indent=2))
