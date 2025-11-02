@@ -5,7 +5,7 @@ Demonstrates both 'run' and 'audit' review workflows.
 """
 
 import asyncio
-from src.mcp.utils import generate_complete_artifacts, load_review_artifacts
+from consensus_code_review.mcp.utils import generate_complete_artifacts, load_review_artifacts
 
 
 async def example_run_review():

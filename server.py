@@ -14,7 +14,7 @@ from pathlib import Path
 project_root = Path(__file__).parent
 sys.path.insert(0, str(project_root))
 
-from src.mcp import MCPManager
+from consensus_code_review.mcp import MCPManager
 
 
 class MCPServer:

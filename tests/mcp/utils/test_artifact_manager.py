@@ -7,7 +7,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
-from src.mcp.utils.artifact_manager import (
+from consensus_code_review.mcp.utils.artifact_manager import (
     generate_complete_artifacts,
     load_review_artifacts,
 )

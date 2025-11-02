@@ -1,7 +1,7 @@
 """Unit tests for token counter utilities."""
 
 import pytest
-from src.mcp.utils.token_counter import (
+from consensus_code_review.mcp.utils.token_counter import (
     count_tokens,
     truncate_to_tokens,
     validate_response_size,

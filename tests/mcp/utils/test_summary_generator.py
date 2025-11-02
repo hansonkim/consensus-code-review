@@ -7,14 +7,12 @@ import tempfile
 import shutil
 from pathlib import Path
 
-from src.mcp.utils.summary_generator import (
+from consensus_code_review.mcp.utils.summary_generator import (
     count_tokens,
     truncate_to_tokens,
     classify_issues,
     write_summary_md,
     write_full_transcript,
-    generate_run_summary_markdown,
-    generate_audit_summary_markdown,
 )
 
 

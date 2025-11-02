@@ -9,12 +9,14 @@ import shutil
 from pathlib import Path
 from datetime import datetime
 
-from src.mcp.utils.artifact_writer import (
-    save_review_artifacts,
-    write_review_type,
-    write_initial_review,
-    write_round_files,
-    write_consensus_json,
+from consensus_code_review.mcp.utils.artifact_writer import (
+    _detect_review_type,
+    _write_review_type,
+    _write_initial_review,
+    _write_full_transcript,
+    _write_round_files,
+    _write_consensus_json,
+    _write_statistics_json,
 )
 
 
