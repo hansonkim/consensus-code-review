@@ -64,18 +64,18 @@
 
 ```bash
 # uv 사용 (권장)
-uv pip install ai-code-review
+uv pip install consensus-code-review
 
 # 또는 pip 사용
-pip install ai-code-review
+pip install consensus-code-review
 ```
 
 #### 소스에서 설치 (개발자용)
 
 ```bash
 # 1. 저장소 클론
-git clone https://github.com/yourusername/ai-code-review.git
-cd ai-code-review
+git clone https://github.com/hansonkim/consensus-code-review.git
+cd consensus-code-review
 
 # 2. uv로 의존성 설치
 uv sync
@@ -133,59 +133,7 @@ pre-commit run --all-files
 
 이제 `git commit` 시 자동으로 코드 품질 검사가 실행됩니다!
 
-### ⚠️ 보안 및 로컬 개발 주의사항
-
-#### 소스 체크아웃 개발자용
-
-**로컬에서 소스를 체크아웃하여 개발하는 경우:**
-
-1. **MCP 설정 템플릿 사용**:
-   ```bash
-   # 템플릿 복사
-   cp config/claude_mcp_config.json.template config/claude_mcp_config.json
-
-   # ${PROJECT_ROOT}를 실제 프로젝트 절대 경로로 수정
-   # 예: /Users/yourname/projects/ai-code-review
-   ```
-
-2. **Setup 스크립트 제한**:
-   - `scripts/setup_mcp_config.sh`는 **소스 체크아웃 전용**
-   - PyPI 설치에는 사용하지 마세요
-   - 절대 경로를 하드코딩하므로 배포 불가
-
-3. **제외된 민감한 파일들** (`.gitignore`로 보호):
-   - `*_cache*.json` - AI 응답 캐시 (개인 데이터)
-   - `reviews/` - 리뷰 결과물 (실행 산출물)
-   - `logs/` - 실행 로그 (디버그 정보)
-   - `.mcp.json`, `.claude/`, `.grok/` - 개인 AI 설정
-   - `config/claude_mcp_config.json` - 로컬 절대 경로 포함
-
-4. **Git History 정리** (민감한 파일이 실수로 커밋된 경우):
-   ```bash
-   # 백업 브랜치 생성
-   git branch backup-before-cleanup-$(date +%Y%m%d-%H%M%S)
-
-   # 민감한 파일 제거
-   git filter-branch --force --index-filter \
-     'git rm --cached --ignore-unmatch [파일명]' \
-     --prune-empty --tag-name-filter cat -- --all
-
-   # Repository 최적화
-   rm -rf .git/refs/original/
-   git reflog expire --expire=now --all
-   git gc --prune=now --aggressive
-   ```
-
-#### PyPI 사용자용
-
-**PyPI에서 설치한 경우:**
-- 위 민감한 파일들은 배포 패키지에 포함되지 않습니다
-- `pyproject.toml`의 `[tool.hatch.build.targets.sdist]` 참조
-- 설정 템플릿만 포함됩니다
-
 ### 사용법
-
-#### 방법 1: MCP에서 직접 실행 (Claude Code) ⭐ **신규**
 
 ```python
 # Claude Code MCP 환경에서
@@ -204,24 +152,6 @@ audit_code_review(base="develop", initial_review="[your review here]")
 audit_code_review(base="develop", initial_review="...", ais="gpt4,gemini")
 ```
 
-#### 방법 2: CLI에서 실행 (기존)
-
-```bash
-# Git diff 리뷰 (자동으로 모든 AI 감지)
-python review.py --base develop
-
-# 특정 브랜치와 비교
-python review.py --base main --target feature/new-feature
-
-# 특정 AI만 사용 (CLAUDE는 자동 포함)
-python review.py --base develop --ais claude,gpt4
-
-# 최대 라운드 수 지정
-python review.py --base develop --max-rounds 5
-
-# 상세 출력 모드
-python review.py --base develop --verbose
-```
 
 ### 출력 예시
 
@@ -323,18 +253,6 @@ Round 3: Review and Refine
 
 **Git/Filesystem 도구는 제거됨** (Python이 내부 처리)
 
-## 📚 문서
-
-- [**Consensus Code Review MCP Tools**](docs/CONSENSUS_CODE_REVIEW_MCP_TOOLS.md) ⭐ **NEW**
-- [**CLAUDE-Led 아키텍처**](docs/CLAUDE_LED_ARCHITECTURE.md)
-- [Pure Task Delegation 아키텍처](docs/PURE_TASK_DELEGATION_ARCHITECTURE.md)
-- [CLI 사용법](docs/CLI_USAGE.md)
-- [MCP 설정](docs/MCP_SETUP.md)
-- [빠른 참조](docs/QUICK_REFERENCE.md)
-- [테스트 가이드](docs/TESTING_GUIDE.md)
-- [실시간 Progress](docs/REALTIME_PROGRESS.md)
-- [트러블슈팅](docs/TROUBLESHOOTING_LARGE_REVIEWS.md)
-
 ## 🏗️ 프로젝트 구조
 
 ```
@@ -377,9 +295,6 @@ tests/                                       ← 테스트 디렉토리
     ├── test_artifact_writer.py
     ├── test_summary_generator.py
     └── test_token_counter.py
-
-docs/                                        ← 문서
-scripts/                                     ← 유틸리티 스크립트
 ```
 
 ## 🧪 테스트
@@ -504,6 +419,6 @@ MIT License
 
 ## 🔗 관련 링크
 
-- **GitHub**: https://github.com/yourusername/ai-code-review
-- **Issues**: https://github.com/yourusername/ai-code-review/issues
-- **Documentation**: https://github.com/yourusername/ai-code-review/blob/main/docs/
+- **GitHub**: https://github.com/yourusername/consensus-code-review
+- **Issues**: https://github.com/yourusername/consensus-code-review/issues
+- **Documentation**: https://github.com/yourusername/consensus-code-review/blob/main/docs/
