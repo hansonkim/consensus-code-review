@@ -28,14 +28,16 @@ class FileChange:
 class DataCurator:
     """Git 데이터 큐레이션 - Python이 모든 결정을 내림"""
 
-    def __init__(self, token_budget: int = 20000):
+    def __init__(self, token_budget: int = 20000, cwd: Optional[str] = None):
         """초기화
 
         Args:
             token_budget: AI에게 전달할 최대 토큰 수
+            cwd: Git 명령어를 실행할 작업 디렉토리
         """
         self.token_budget = token_budget
         self.timeout = 30
+        self.cwd = cwd
 
     def curate_changes(self, base_branch: str, target_branch: str = "HEAD") -> Dict:
         """변경사항 큐레이션 - Python이 모든 Git 작업 수행
@@ -101,6 +103,7 @@ class DataCurator:
                 text=True,
                 timeout=self.timeout,
                 check=True,
+                cwd=self.cwd,
             )
             files = [f.strip() for f in result.stdout.split("\n") if f.strip()]
             return files
@@ -209,6 +212,7 @@ class DataCurator:
                 text=True,
                 timeout=self.timeout,
                 check=True,
+                cwd=self.cwd,
             )
             # Output: "5\t3\tpath/to/file.py" (insertions, deletions, path)
             if result.stdout.strip():
@@ -259,6 +263,7 @@ class DataCurator:
                 text=True,
                 timeout=self.timeout,
                 check=True,
+                cwd=self.cwd,
             )
             return result.stdout
         except subprocess.CalledProcessError:

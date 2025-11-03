@@ -690,6 +690,7 @@ class ReviewOrchestrator:
         initial_review_file: str = "",
         max_rounds: int = 5,
         verbosity: VerbosityMode = "summary",
+        repo_dir: str = None,
     ) -> Dict:
         """🔄 반복적 합의 프로세스 (외부 파일 시작)
 
@@ -711,6 +712,7 @@ class ReviewOrchestrator:
             initial_review_file: CLAUDE가 작성한 초기 리뷰 파일 경로 (필수)
             max_rounds: 최대 라운드 수 (기본: 5)
             verbosity: 응답 상세도 (summary | detailed | full)
+            repo_dir: Git 저장소 디렉토리 (None이면 현재 작업 디렉토리)
 
         Returns:
             {
@@ -744,7 +746,7 @@ class ReviewOrchestrator:
             return {"status": "error", "error": "Review file is empty"}
 
         # 3. 데이터 큐레이션
-        curator = DataCurator()
+        curator = DataCurator(cwd=repo_dir)
         curated_result = curator.curate_changes(base, target)
         curated_data = curator.format_curated_data(curated_result)
 
@@ -803,14 +805,8 @@ class ReviewOrchestrator:
             {
                 "name": "review_iterative_consensus",
                 "description": "🔄 반복적 합의 프로세스 시작 | 외부 파일에서 CLAUDE의 초기 리뷰를 읽고, 다른 AI 피드백 → CLAUDE 개선을 반복하여 합의에 도달합니다. MCP가 사용 가능한 모든 AI를 자동 감지합니다.",
-                "parameters": "base: str, target: str = 'HEAD', initial_review_file: str, max_rounds: int = 5, verbosity: str = 'summary'",
-                "example": 'review_iterative_consensus(base="develop", initial_review_file="./review.md", max_rounds=5, verbosity="summary")',
-            },
-            {
-                "name": "create_review_session",
-                "description": "🆕 새 리뷰 세션을 생성하고 초기 메타데이터를 설정합니다.",
-                "parameters": "base: str, target: str = 'HEAD', curated_data: str | None = None, max_rounds: int = 3, target_ais: list[str] | None = None, verbosity: str = 'summary'",
-                "example": 'create_review_session(base="develop", target="HEAD")',
+                "parameters": "base: str, target: str = 'HEAD', initial_review_file: str, max_rounds: int = 5, verbosity: str = 'summary', repo_dir: str = None",
+                "example": 'review_iterative_consensus(base="develop", target="feature-branch", initial_review_file="./review.md", repo_dir="/path/to/repository")',
             },
             {
                 "name": "submit_review",
