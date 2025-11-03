@@ -7,7 +7,14 @@ utilities directly from here instead of relying on the internal package
 layout.
 """
 
+import sys
 from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
+
+# ai_cli_tools를 import할 수 있도록 경로 추가
+_src_dir = Path(__file__).parent.parent
+if str(_src_dir) not in sys.path:
+    sys.path.insert(0, str(_src_dir))
 
 from .mcp import MCPManager, ReviewOrchestrator
 
