@@ -419,6 +419,6 @@ MIT License
 
 ## 🔗 관련 링크
 
-- **GitHub**: https://github.com/yourusername/consensus-code-review
-- **Issues**: https://github.com/yourusername/consensus-code-review/issues
-- **Documentation**: https://github.com/yourusername/consensus-code-review/blob/main/docs/
+- **GitHub**: https://github.com/hansonkim/consensus-code-review
+- **Issues**: https://github.com/hansonkim/consensus-code-review/issues
+- **Documentation**: https://github.com/hansonkim/consensus-code-review/blob/main/README.md
