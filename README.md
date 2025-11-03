@@ -145,6 +145,72 @@ pre-commit run --all-files
 
 이제 `git commit` 시 자동으로 코드 품질 검사가 실행됩니다!
 
+### MCP 서버 설정 (Claude Desktop)
+
+Claude Desktop에서 이 프로젝트를 MCP 서버로 등록하여 사용할 수 있습니다.
+
+**설정 파일 위치:**
+- **macOS**: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- **Windows**: `%APPDATA%\Claude\claude_desktop_config.json`
+
+**추천 설정 (GitHub에서 직접 실행):**
+
+```json
+{
+  "mcpServers": {
+    "consensus-code-review": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/hansonkim/consensus-code-review",
+        "consensus-code-review-server"
+      ]
+    }
+  }
+}
+```
+
+**장점:**
+- ✅ 로컬 클론 불필요 - GitHub에서 직접 실행
+- ✅ 항상 최신 버전 사용
+- ✅ 설정이 가장 간단
+
+**로컬 개발 버전 사용 (개발자용):**
+
+```json
+{
+  "mcpServers": {
+    "consensus-code-review": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "/absolute/path/to/consensus-code-review",
+        "consensus-code-review-server"
+      ]
+    }
+  }
+}
+```
+
+**설정 확인:**
+1. Claude Desktop **완전 종료** 후 재시작
+2. 새 대화 시작
+3. `/mcp` 입력 후 `consensus-code-review` 확인
+4. MCP 도구 목록에서 `review_run_code_review`, `review_audit_code_review` 확인
+
+**문제 해결:**
+```bash
+# uvx 설치 확인
+uvx --version  # 또는: pip install uv
+
+# 패키지 직접 실행 테스트
+uvx --from git+https://github.com/hansonkim/consensus-code-review consensus-code-review-server
+
+# Claude Desktop 로그 확인
+# macOS: ~/Library/Logs/Claude/mcp*.log
+# Windows: %APPDATA%\Claude\logs\mcp*.log
+```
+
 ### 사용법
 
 ```python

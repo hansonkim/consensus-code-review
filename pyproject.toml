@@ -47,6 +47,7 @@ Issues = "https://github.com/hansonkim/consensus-code-review/issues"
 
 [project.scripts]
 consensus-code-review = "consensus_code_review:main"
+consensus-code-review-server = "consensus_code_review:server_main"
 
 [build-system]
 requires = ["hatchling"]

@@ -16,6 +16,7 @@ __all__ = [
     "ReviewOrchestrator",
     "get_version",
     "main",
+    "server_main",
 ]
 
 
@@ -32,3 +33,10 @@ def main() -> None:
     from .cli import app
 
     app()
+
+
+def server_main() -> None:
+    """Entry point for MCP server (stdio protocol)."""
+    from .stdio_server import run_stdio_server
+
+    run_stdio_server()
