@@ -45,6 +45,10 @@ env/
 *-review-*.md
 *-final-review-*.md
 
+# Slack MCP cache files (개인 정보 포함)
+.channels_cache_v2.json
+.users_cache.json
+
 # Testing
 .pytest_cache/
 .coverage
