@@ -70,6 +70,18 @@ uv pip install consensus-code-review
 pip install consensus-code-review
 ```
 
+#### GitHub에서 직접 설치
+
+최신 개발 버전을 설치하려면:
+
+```bash
+# pip로 설치
+pip install git+https://github.com/hansonkim/consensus-code-review
+
+# 또는 uvx로 직접 실행 (설치 없이 실행)
+uvx --from git+https://github.com/hansonkim/consensus-code-review consensus-code-review
+```
+
 #### 소스에서 설치 (개발자용)
 
 ```bash
