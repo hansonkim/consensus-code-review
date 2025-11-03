@@ -21,13 +21,8 @@ class MCPManager:
     AI는 리뷰 작성(주관적 작업)만 수행합니다.
     """
 
-    def __init__(self, root_dir: str = None):
-        """초기화
-
-        Args:
-            root_dir: 루트 디렉토리 (사용되지 않음, 하위 호환성 유지)
-        """
-        # Review session 관리 도구만 제공
+    def __init__(self):
+        """초기화 - Review session 관리 도구만 제공"""
         self.orchestrator = ReviewOrchestrator()
         self.servers = {"review": self.orchestrator}
 
