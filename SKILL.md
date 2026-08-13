@@ -21,26 +21,6 @@ description: "Multi-AI collaborative review validation and consensus. The runtim
 4. **합의 프로세스**를 진행합니다
 5. **최종 검증된 리뷰**를 생성합니다
 
-### 참조 프로젝트의 리뷰 모드
-
-이 스킬의 개념 원본인 [hansonkim/consensus-code-review](https://github.com/hansonkim/consensus-code-review)는 **CLAUDE-Led Iterative Review**를 제공한다. MCP 서버가 두 경로를 노출한다:
-
-- `run_code_review` — 리드 런타임이 초기 REPORT를 작성하고 다른 AI들이 비판하며 반복 개선
-- `audit_code_review` — 이미 작성된 리뷰를 다른 AI들에게 peer 검증받기
-
-이 스킬은 **audit 경로(기존 리뷰의 다중 AI 합의 검증)**에 대응한다. 초기 리뷰 작성이 필요한 경우는 `run_code_review` 개념을 함께 쓸 수 있으나, 이 스킬 자체는 검증·합의만 수행한다.
-
-### 피드백 분류 (Repo 정본 기준)
-
-Round별 peer 피드백은 아래 4분류로 정규화한다 (repo `minimal_prompt.py` 기준, 한국어 라벨과 병기):
-
-| 코드 | 의미 | 처리 |
-|------|------|------|
-| ✅ AGREE | 이슈·분석 타당 | 유지 |
-| ⚠️ NEEDS_CHANGE | 타당하나 심각도/해결책 개선 필요 | 수정 |
-| ❌ DISAGREE | 실제 문제 아님 (False Positive) | 제거 또는 반박 |
-| 💡 MISSING | 리뷰가 놓친 새 이슈 | 추가 |
-
 ## Blind 1차 검토 원칙 (앵커링 방지)
 
 Round 1에서는 peer 검증자에게 **준비된 리뷰(결론)를 전달하지 않는다**. 결론을 먼저 주면 검증자가 그 결론을 추인하는 쪽으로 앵커링되기 때문이다.
@@ -148,7 +128,7 @@ main 브랜치 대비 변경사항에 대한 다음 리뷰를 검증해주세요
 
 - **리뷰 생성 안 함**: 사용자가 준비한 리뷰만 검증, 현재 세션은 검증 프로세스만 진행
 - **다중 AI 검증**: 현재 실행 주체를 제외한 Claude/Codex/agy peer와 선택 검증자(Grok, Ollama Cloud GLM-5.2, GPT OSS 120B) 활용
-- **구조화된 피드백**: AGREE/NEEDS_CHANGE/DISAGREE/MISSING(동의/수정/반대/추가)로 분류, 정량적 합의율 계산
+- **구조화된 피드백**: 동의/수정/반대/추가로 분류, 정량적 합의율 계산
 - **반복적 개선**: 피드백 기반 수정 후 재검증, 합의 도달까지 최대 3라운드
 - **Token 효율성**: Resume/Continue + Delta Updates로 평균 45~60% 절감
 

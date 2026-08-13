@@ -314,7 +314,6 @@ Round 1은 **blind**로 진행한다: 준비된 리뷰(결론)는 전달하지 �
   - **합의 도달**: 모든 AI가 80% 이상 동의
   - **개선 필요**: 수정 제안 또는 반대 20% 이상
   - **재검토 필요**: 반대 의견 30% 이상
-  - **Repo 정본 교차 확인(선택)**: repo `review_orchestrator.py`는 합의를 긍정/부정 키워드 휴리스틱(긍정이 부정보다 많고 긍정이 전체의 50% 이상)으로 판단한다. 라운드 전환 전 이 키워드 교차 확인을 함께 수행해 양쪽 결론이 어긋나면(예: 정량 합의율은 80%지만 부정 키워드 우세) 사용자에게 알린다.
 
 ## Phase 5: Round 2~N - 개선 및 재검증 (Resume 활용)
 
@@ -685,53 +684,6 @@ Round 1은 blind 프롬프트(Phase 3 참조)를 사용한다. 아래 템플릿�
 - 종합 의견: [한 줄 평가]
 ```
 
-### Repo 정본 프롬프트 구조 참조
-
-아래 템플릿은 repo `minimal_prompt.py`의 4개 정본 프롬프트와 구조를 맞춘다. 카테고리 코드와 의사결정 형식은 그대로 따르되, 텍스트는 이 스킬 맥락(리뷰 검증)에 맞게 다듬는다.
-
-**검토자 비판 (reviewer critique)** — Round 1 blind / Round N 재검증용, 4분류:
-
-```markdown
-## Summary
-- Issues I agree with: X            # ✅ AGREE
-- Issues needing changes: Y        # ⚠️ NEEDS_CHANGE
-- Issues I disagree with: Z        # ❌ DISAGREE
-- Missing issues I found: W        # 💡 MISSING
-
-## Detailed Feedback
-### ✅ Issues I Agree With ...
-### ⚠️ Issues Needing Changes ...
-### ❌ Issues I Disagree With ...
-### 💡 Missing Issues ...
-
-## Overall Assessment
-- Report quality: [Excellent/Good/Needs Improvement]
-- Key strengths: ...
-- Key areas for improvement: ...
-```
-
-**리드 런타임 개선 판단 (refinement)** — 피드백별 수용/거부와 최종 결정:
-
-```markdown
-# DECISION: NO_CHANGES_NEEDED | REPORT_NEEDS_REFINEMENT
-
-## Evaluation Summary
-- Accepted: X feedbacks            # ✅ ACCEPT
-- Partially accepted: Y feedbacks  # 🤔 PARTIALLY_ACCEPT
-- Rejected: Z feedbacks            # ❌ REJECT
-
-## Changes Being Made / Refined Report
-...
-```
-
-**최종 합의 확인 (consensus check)** — 검증자별 최종 YES/NO:
-
-```markdown
-# DECISION: YES | NO
-## I Agree With This Report / I Disagree - Issues Remain
-- [블로커 누락, 심각도 오분류, 위험한 수정 제안 등이 남아 있을 때만 NO]
-```
-
 ---
 
 ## 문제 해결
@@ -792,7 +744,7 @@ printf '%s' "Review and respond only — do not edit any files. 이전 검토 �
 # agy --print는 매 호출 새 세션이므로 resume 개념이 없다.
 # 인터랙티브 세션을 이어가려면 아래를 사용한다.
 agy --continue               # 가장 최근 대화 이어가기
-agy --conversation [[ORCA_RICH_MD:<conversation-id>:inline-html:%3Cid%3E]]      # 특정 대화 ID로 재개 (실제 ID로 대체)
+agy --conversation [[ORCA_RICH_MD:<conversation-id>:inline-html:%3Cid%3E]]      # 특정 대화 ID로 재개
 ```
 
 **Grok:**
